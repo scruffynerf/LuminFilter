@@ -5,12 +5,12 @@ LuminFilter is a fully featured filtering solution for sites running Luminance. 
 Everything you put in a list applies on every supported site. To limit an entry to specific sites, prefix it with `@site/`:
 
 ```
-jerk.off.instruction            applies everywhere
+documentary                     applies everywhere
 @site1/someuser                 only on site1
 @site1,site2/some.tag           on site1 and site2, not elsewhere
 ```
 
-Entries in every list are separated by semicolons: `scat;piss.drinking;@site1/someuser`. The site names to use are shown in the hint at the top of the list tabs in Options. This works in every tag, title and uploader list. Titles can contain spaces (`@site1/some phrase`), since only the leading `@site/` is special.
+Entries in every list are separated by semicolons: `documentary;black.and.white;@site1/someuser`. The site names to use are shown in the hint at the top of the list tabs in Options. This works in every tag, title and uploader list. Titles can contain spaces (`@site1/some phrase`), since only the leading `@site/` is special.
 
 # Conditional rules
 For anything a plain list can't say, turn on **Conditional rules** in Options > Settings > Filtering and use the new *Conditional* tab. One rule per line, written as `ACTION: expression`:
@@ -20,13 +20,13 @@ For anything a plain list can't say, turn on **Conditional rules** in Options > 
 HIDE: $UP{wickedwitch} AND NOT ($TA{munchkin} OR $TI{Emerald City})
 
 # Only hide this tag in compilations
-HIDE: $TA{solo} AND $TI{compilation}
+HIDE: $TA{documentary} AND $TI{compilation}
 
 # Whitelist an uploader on one site only
 SHOW: $SI{site1} AND $UP{someuser}
 
 # Never show these, no matter what
-PASS: $TA{scat} OR $TA{puke}
+PASS: $TA{trailer} OR $TA{sample}
 ```
 
 - Actions: `HIDE` (like the blacklists; whitelists can still win), `PASS` (like Hard Pass), `SHOW` (like the whitelists)

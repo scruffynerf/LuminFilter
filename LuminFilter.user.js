@@ -216,7 +216,7 @@ function lfInitList(settingName, defaultValue, allowSpaces = false) {
 
 // Load and initialize saved filter lists
 let [lfBlacklistTaglist, lfBlacklistTags] = lfInitList("lfTaglist", "enter.tags.here;separated.by.semicolons;no.newlines");
-let [lfHardPassTaglist, lfHardPassTags] = lfInitList("lfHardPassTaglist", "enter.hard.pass.tags.here;big.poopies;gushing.blood");
+let [lfHardPassTaglist, lfHardPassTags] = lfInitList("lfHardPassTaglist", "enter.hard.pass.tags.here;example.tag;another.tag");
 let [lfWhitelistTaglist, lfWhitelistTags] = lfInitList("lfWhitelist", "whitelist.tags;go.here");
 
 let [lfBlacklistTitleList, lfBlacklistTitlePhrases] = lfInitList("lfBlacklistTitles", "this is a title phrase;this is another title phrase", true);
@@ -658,7 +658,7 @@ let lfThemeDescriptions = {
     lfThemeDefault: "White background with black text and blue accents",
     lfThemeLegacy: "Ye Olde Theme with a blue background and white text",
     lfThemeEdgy: "For the edgelord in all of us, red text on a black background",
-    lfThemeBaked: "Ayyyy 420 blaze it — Green and purple",
+    lfThemeBaked: "Green and purple",
     lfThemeDarkPurple: "A dark mode theme with purple highlights",
     lfThemeCustom: "Define your own colors using the text boxes below"
 };
@@ -856,7 +856,7 @@ htmlContent.innerHTML = `
 
         <section id="lfContent1">
             <div class="lfFieldDiv">
-                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@happyfappy/someone</b>, or list several sites with commas: <b>@empornium,kufirc/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@${Object.keys(lfSiteProfiles)[0]}/someone</b>, or list several sites with commas: <b>@${Object.keys(lfSiteProfiles).slice(0, 2).join(",")}/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
             </div>
             <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfTagBlacklistHeader"><span class="lfEmoji">👎</span> Tag blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfBLEToggler">[?]</sup><br />
@@ -868,7 +868,7 @@ htmlContent.innerHTML = `
                     <div class="lfExplanationNode">
                         This is where you specify tags you don't want to see. Any torrent matching
                         any of these tags will be hidden unless overridden by any of the whitelist
-                        rules. Tags use a period between words within a tag, just like on Empornium
+                        rules. Tags use a period between words within a tag, just like on the site
                         itself. <b>Tags are separated by semicolons <span class="lfMonospace">;</span></b>
                         Character case does not matter. Blacklisted tags will be
                         <span class="lfHiddenTag">highlighted</span> when viewing
@@ -877,7 +877,7 @@ htmlContent.innerHTML = `
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>scat;piss.drinking;jerk.off.instruction;non.nude</pre>
+                        <pre>documentary;behind.the.scenes;black.and.white;foreign.film</pre>
                     </div>
                 </div>
                 <textarea class="lfTextArea" id="lfBlacklistTaglistArea" rows=4>${lfBlacklistTaglist}</textarea>
@@ -893,7 +893,7 @@ htmlContent.innerHTML = `
                         This is where you specify tags you don't want to see at all. Any torrent
                         matching any of these tags will be hidden unless overridden by individual
                         filtering (clicking the eye icon). Tags use a period between words within a
-                        tag, just like on Empornium itself. <b>Tags are separated by semicolons
+                        tag, just like on the site itself. <b>Tags are separated by semicolons
                         <span class="lfMonospace">;</span></b> Character case does not matter.
                         Hard Pass tags will be <span class="lfHardPassTag">highlighted</span> when viewing hidden torrents. The torrent will be removed completely from the results if the Black Hole
                         option is enabled.
@@ -901,7 +901,7 @@ htmlContent.innerHTML = `
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>virtual.reality;scat;puke;blood;enema</pre>
+                        <pre>trailer;sample;low.quality;watermarked;screener</pre>
                     </div>
                 </div>
                 <textarea class="lfTextArea" id="lfHardPassTaglistArea" rows=4>${lfHardPassTaglist}</textarea>
@@ -918,14 +918,14 @@ htmlContent.innerHTML = `
                         rules. In other words, no matter if the torrent matches on tags, title or
                         uploader blacklists — if it contains any of these whitelisted tags, it
                         will be shown regardless. Tags use a period between words within a tag, just
-                        like on Empornium itself. <b>Tags are separated by semicolons
+                        like on the site itself. <b>Tags are separated by semicolons
                         <span class="lfMonospace">;</span></b> Character case does not matter.
                         Whitelisted tags will be <span class="lfWhitelistedTag">highlighted</span>.
                     </div>
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>sasha.grey;huge.ass;gianna.michaels;femdom</pre>
+                        <pre>director.cut;criterion;remastered;classic</pre>
                     </div>
                 </div>
                 <textarea class="lfTextArea" id="lfWhitelistTaglistArea" rows=4>${lfWhitelistTaglist}</textarea>
@@ -934,7 +934,7 @@ htmlContent.innerHTML = `
 
         <section id="lfContent2">
             <div class="lfFieldDiv">
-                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@happyfappy/someone</b>, or list several sites with commas: <b>@empornium,kufirc/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@${Object.keys(lfSiteProfiles)[0]}/someone</b>, or list several sites with commas: <b>@${Object.keys(lfSiteProfiles).slice(0, 2).join(",")}/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
             </div>
             <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfTitleBlacklistHeader"><span class="lfEmoji">👎</span> Title blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfTitleBLEToggler">[?]</sup><br />
@@ -946,14 +946,14 @@ htmlContent.innerHTML = `
                     <div class="lfExplanationNode">
                         This is where you specify title phrases you want to filter on. This is
                         useful for hiding untagged content with a recurring theme (for example
-                        specific JAV series you don't care about, or re-encoded content).
+                        a series you don't care about, or re-encoded content).
                         Character case does not matter. <b>Title phrases are separated by
                         semicolons <span class="lfMonospace">;</span></b>
                     </div>
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>sdmm;hikr;princess peach;reencode</pre>
+                        <pre>sample;trailer;reencode;low quality</pre>
                     </div>
                 </div>
                 <textarea class="lfTextArea" id="lfBlacklistTitleListArea" rows=4>${lfBlacklistTitleList}</textarea>
@@ -973,7 +973,7 @@ htmlContent.innerHTML = `
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>sdmm;hikr;princess peach;reencode</pre>
+                        <pre>sample;trailer;reencode;low quality</pre>
                     </div>
                 </div>
                 <textarea class="lfTextArea" id="lfHardPassTitleListArea" rows=4>${lfHardPassTitleList}</textarea>
@@ -988,7 +988,7 @@ htmlContent.innerHTML = `
                     <div class="lfExplanationNode">This is where you specify title phrases you want to show regardless of other rules. Character case does not matter. <b>Title phrases are separated by semicolons <span class="lfMonospace">;</span></b>
                     </div>
 
-                    <div class="lfExplanationNode">Example:<br /><pre>minipack;super mario;sdmm;moist</pre></div>
+                    <div class="lfExplanationNode">Example:<br /><pre>remastered;director's cut;extended edition;restored</pre></div>
                 </div>
                 <textarea class="lfTextArea" id="lfWhitelistTitleListArea" rows=4>${lfWhitelistTitleList}</textarea>
             </div>
@@ -996,7 +996,7 @@ htmlContent.innerHTML = `
 
         <section id="lfContent3">
             <div class="lfFieldDiv">
-                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@happyfappy/someone</b>, or list several sites with commas: <b>@empornium,kufirc/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@${Object.keys(lfSiteProfiles)[0]}/someone</b>, or list several sites with commas: <b>@${Object.keys(lfSiteProfiles).slice(0, 2).join(",")}/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
             </div>
             <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfUploaderBlacklistHeader"><span class="lfEmoji">👎</span> Uploader blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfUBLEToggler">[?]</sup><br />
@@ -1017,7 +1017,7 @@ htmlContent.innerHTML = `
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>SuperUploader2007;LowQualityUploadsIncorporated</pre>
+                        <pre>ExampleUploader;AnotherUploader</pre>
                     </div>
                 </div>
                 <textarea class="lfTextArea" id="lfBlacklistUploadersArea" rows=4>${lfBlacklistUploadersList}</textarea>
@@ -1041,7 +1041,7 @@ htmlContent.innerHTML = `
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>NobelPrizeWinningUploads;ActuallyGreatUploader69;ceodoe</pre>
+                        <pre>TrustedUploader;AnotherGoodUploader</pre>
                     </div>
                 </div>
                 <textarea class="lfTextArea" id="lfWhitelistUploadersArea" rows=4>${lfWhitelistUploadersList}</textarea>
@@ -1116,13 +1116,13 @@ htmlContent.innerHTML = `
 HIDE: $UP{wickedwitch} AND NOT ($TA{munchkin} OR $TA{yellow.brick.road} OR $TI{Emerald City})
 
 # Only hide this tag when it shows up in compilations
-HIDE: $TA{solo} AND $TI{compilation}
+HIDE: $TA{documentary} AND $TI{compilation}
 
 # Always show anything with both of these tags
-SHOW: $TA{sasha.grey} AND $TA{femdom}
+SHOW: $TA{director.cut} AND $TA{classic}
 
 # Never show these, no matter what
-PASS: $TA{scat} OR $TA{puke}
+PASS: $TA{trailer} OR $TA{sample}
 
 # Whitelist an uploader on one site only
 SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
@@ -1426,7 +1426,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                         <span class="lfEmoji">⌨️</span> Navigate paginated torrent lists with keyboard arrow keys
                     </label><br />
                     <span class="lfExplanationSpan lfESOffset">(Note that LuminFilter only runs on torrent lists, if you want</span><br />
-                    <span class="lfExplanationSpan lfESOffset">arrow key navigation globally on Empornium, use <a class="lfLink" href="https://github.com/scruffynerf/LuminFilter/raw/master/GlobalArrowKeyNavigation.user.js" target="_blank"><b><u>this script</u></b></a>)</span>
+                    <span class="lfExplanationSpan lfESOffset">arrow key navigation globally on the site, use <a class="lfLink" href="https://github.com/scruffynerf/LuminFilter/raw/master/GlobalArrowKeyNavigation.user.js" target="_blank"><b><u>this script</u></b></a>)</span>
                 </div>
 
                 <div class="lfTopAiryDiv lfBtmAiryDiv">
@@ -1469,7 +1469,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
             <section id="lfSettingsContent4">
                 <h3 class="lfH3">About</h3>
                 <p>
-                    Copyright &copy; 2015-2026 ceodoe, xrt141, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">LuminFilter</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by <a class="lfLink" href="/user.php?id=508194">ceodoe</a> of Empornium. The conditional rules engine and several interface improvements are by xrt141. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
+                    Copyright &copy; 2015-2026 ceodoe, xrt141, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
                 </p>
 
                 <h3 class="lfH3">Statistics</h3>
@@ -1492,8 +1492,6 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                 <h3 class="lfH3">Resources</h3>
                 <p>
                     <b>
-                        <span class="lfEmoji">🧵</span> <a class="lfLink" href="/forum/thread/44258?postid=956045#post956045" target="_blank">Read the original LuminFilter thread on the Empornium forums</a><br />
-
                         <span class="lfEmoji">🐙</span> <a class="lfLink" href="https://github.com/scruffynerf/LuminFilter" target="_blank">Report a bug or view commit history on GitHub</a><br />
                         
                         <span class="lfEmoji">📋</span> <a class="lfLink" href="https://github.com/scruffynerf/LuminFilter/blob/master/CHANGELOG.md#latest-changes" target="_blank">Read the changelog</a><br />
@@ -2689,7 +2687,7 @@ if(lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled && !lfUnfilteredP
     let now = new Date();
     if(lfEveryDayIsApril1st || (now.getMonth() == 3 && now.getDate() == 1)) {
         let emojiElements = document.getElementsByClassName("lfEmoji");
-        let normieArray = new Array("😂","🤣","😆", "🍆", "🍑", "💦", "💯", "😭", "🙃", "💩", "👌", "😏", "🙄", "🥵", "😱", "👀", "🤡");
+        let normieArray = new Array("😂","🤣","😆", "💯", "😭", "🙃", "👌", "😏", "🙄", "😱", "👀", "🎉", "🤪", "🦄", "🍕", "🌈");
         for(let i = 0; i < emojiElements.length; i++) {
             let randNum = Math.floor(Math.random() * normieArray.length);
             emojiElements[i].innerHTML = normieArray[randNum];
