@@ -61,4 +61,25 @@ t.w.lfBindContextMenu(title, "title");
 title.dispatchEvent(new t.w.MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
 assert.strictEqual(t.doc.getElementById("lfRCMTitlePhraseText").value, "Plain");
 
+// Lists interplay: blacklist, whitelist rescue, hard pass override, uploader and title lists (case-insensitive)
+const mix = rows(
+    row(1, "Alpha", ["bad"], "Alice"),            // blacklisted tag, but whitelisted uploader  -> shown
+    row(2, "Beta", ["bad", "good"], "bob"),       // whitelisted tag rescues                      -> shown
+    row(3, "Gamma", ["hp", "good"], "bob"),       // hard pass beats whitelist                    -> hidden
+    row(4, "Delta", ["fine"], "MALLORY"),         // blacklisted uploader                         -> hidden
+    row(5, "Epsilon Special", ["bad"], "bob"),    // whitelisted title phrase                     -> shown
+    row(6, "Zeta", ["fine"], "bob")               // untouched                                    -> shown
+);
+t = boot({ body: mix, seed: { lfTaglist: "bad", lfWhitelist: "good", lfHardPassTaglist: "hp", lfUploaders: "mallory", lfWhitelistUploaders: "ALICE",
+                              lfWhitelistTitles: "special", lfHardPassEnabled: true, lfUpdateToastsEnabled: false } });
+assert.deepStrictEqual(t.errors, []);
+assert.deepStrictEqual(hidden(t), [false, false, true, true, false, false]);
+
+// Saving refreshes what is matched (no stale lookup sets)
+t = boot({ body, seed: seed(), expose: ["lfMatch"] });
+assert.ok(!t.w.__lf.lfMatch.tagBlacklist.has("brand.new"));
+t.doc.getElementById("lfBlacklistTaglistArea").value = "bad.tag;brand.new";
+t.w.saveData();
+assert.ok(t.w.__lf.lfMatch.tagBlacklist.has("brand.new"));
+
 console.log("filter.test OK");

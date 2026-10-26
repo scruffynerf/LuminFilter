@@ -547,14 +547,40 @@ const lfRawLists = {
     lfWhitelistUploaders: lfWhitelistUploaders
 };
 
-lfBlacklistTags = lfScopeFilter(lfBlacklistTags);
-lfHardPassTags = lfScopeFilter(lfHardPassTags);
-lfWhitelistTags = lfScopeFilter(lfWhitelistTags);
-lfBlacklistTitlePhrases = lfScopeFilter(lfBlacklistTitlePhrases);
-lfHardPassTitlePhrases = lfScopeFilter(lfHardPassTitlePhrases);
-lfWhitelistTitlePhrases = lfScopeFilter(lfWhitelistTitlePhrases);
-lfBlacklistUploaders = lfScopeFilter(lfBlacklistUploaders);
-lfWhitelistUploaders = lfScopeFilter(lfWhitelistUploaders);
+// Each stored list: the setting it lives in, and how to refresh the cached copies of it
+// (the raw text for saving, the entries that apply on this site for matching).
+const lfListBindings = {
+    lfTaglist: { setText: v => { lfBlacklistTaglist = v; }, setItems: v => { lfBlacklistTags = v; } },
+    lfHardPassTaglist: { setText: v => { lfHardPassTaglist = v; }, setItems: v => { lfHardPassTags = v; } },
+    lfWhitelist: { setText: v => { lfWhitelistTaglist = v; }, setItems: v => { lfWhitelistTags = v; } },
+    lfBlacklistTitles: { setText: v => { lfBlacklistTitleList = v; }, setItems: v => { lfBlacklistTitlePhrases = v; } },
+    lfHardPassTitles: { setText: v => { lfHardPassTitleList = v; }, setItems: v => { lfHardPassTitlePhrases = v; } },
+    lfWhitelistTitles: { setText: v => { lfWhitelistTitleList = v; }, setItems: v => { lfWhitelistTitlePhrases = v; } },
+    lfUploaders: { setText: v => { lfBlacklistUploadersList = v; }, setItems: v => { lfBlacklistUploaders = v; } },
+    lfWhitelistUploaders: { setText: v => { lfWhitelistUploadersList = v; }, setItems: v => { lfWhitelistUploaders = v; } }
+};
+
+for(const [setting, binding] of Object.entries(lfListBindings)) {
+    binding.setItems(lfScopeFilter(lfRawLists[setting]));
+}
+
+// Lookup structures for the per-row matching, built once instead of per row.
+// Tags are compared as written; uploaders and phrases case-insensitively.
+let lfMatch = null;
+function lfBuildMatchers() {
+    const phrases = list => list.map(entry => entry.trim().toLowerCase()).filter(entry => entry !== "");
+    lfMatch = {
+        tagBlacklist: new Set(lfBlacklistTags),
+        tagHardPass: new Set(lfHardPassTags),
+        tagWhitelist: new Set(lfWhitelistTags),
+        uploaderBlacklist: new Set(phrases(lfBlacklistUploaders)),
+        uploaderWhitelist: new Set(phrases(lfWhitelistUploaders)),
+        titleBlacklist: phrases(lfBlacklistTitlePhrases),
+        titleHardPass: phrases(lfHardPassTitlePhrases),
+        titleWhitelist: phrases(lfWhitelistTitlePhrases)
+    };
+}
+lfBuildMatchers();
 
 // Load saved options
 //  Filtering options
@@ -2048,30 +2074,15 @@ if(torrents) {
                 } else { // Not an anon upload
                     let uploader = uploaderElement.innerHTML.trim().toLowerCase();
 
-                    let hiddenByUploader = false;
-                    for(let l = 0; l < lfBlacklistUploaders.length; l++) {
-                        if(uploader == lfBlacklistUploaders[l].trim().toLowerCase()) {
-                            hiddenByUploader = true;
-                            currentHidden = true;
-                            if(russianRouletteBulletInChamber == false) {
-                                uploaderElement.classList.add("lfHiddenUploader");
-                            }
-                            break;
+                    // Usernames are unique, so a blacklisted uploader needs no whitelist check
+                    if(lfMatch.uploaderBlacklist.has(uploader)) {
+                        currentHidden = true;
+                        if(russianRouletteBulletInChamber == false) {
+                            uploaderElement.classList.add("lfHiddenUploader");
                         }
-                    }
-
-                    // If hiddenByUploader is still false, that means no blacklisted uploader was found, check whitelist
-                    // If hiddenByUploader is true, blacklisted uploader was found, and since usernames are unique, skip check
-                    if(hiddenByUploader == false) {
-                        if(currentBypassWhitelist == false) {
-                            for(let m = 0; m < lfWhitelistUploaders.length; m++) {
-                                if(uploader == lfWhitelistUploaders[m].trim().toLowerCase()) {
-                                    currentWhitelisted = true;
-                                    uploaderElement.classList.add("lfWhitelistedUploader");
-                                    break;
-                                }
-                            }
-                        }
+                    } else if(currentBypassWhitelist == false && lfMatch.uploaderWhitelist.has(uploader)) {
+                        currentWhitelisted = true;
+                        uploaderElement.classList.add("lfWhitelistedUploader");
                     }
                 }
             }
@@ -2079,90 +2090,78 @@ if(torrents) {
             // Match against the title as the site rendered it (before any badges are appended below)
             const torrentTitle = titleElement.textContent.trim().toLowerCase();
 
-            // Scan title for lfBlacklistTitlePhrases
-            // ...For every blacklisted phrase:
-            for(let tblCount = 0; tblCount < lfBlacklistTitlePhrases.length; tblCount++) {
-                let currentTBLPhrase = lfBlacklistTitlePhrases[tblCount].trim().toLowerCase();
+            // Scan the title against the phrase lists; matches are shown as "(phrase)" badges,
+            // collected here and appended in one go
+            let titleBadges = "";
+            const addTitleBadge = function(cssClass, phrase) {
+                titleBadges += ` <span class="${cssClass}">(${lfEscapeHTML(phrase)})</span>`;
+            };
 
-                if(currentTBLPhrase != "") {
-                    if(torrentTitle.includes(currentTBLPhrase)) {
-                        currentHidden = true;
-                        if(russianRouletteBulletInChamber == false) {
-                            titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfHiddenTitle">(${lfEscapeHTML(currentTBLPhrase)})</span>`;
-                        }
-                    }
+            for(const phrase of lfMatch.titleBlacklist) {
+                if(torrentTitle.includes(phrase)) {
+                    currentHidden = true;
+                    if(russianRouletteBulletInChamber == false) { addTitleBadge("lfHiddenTitle", phrase); }
                 }
             }
 
-            // Scan title for lfHardPassTitlePhrases
             if(lfHardPassEnabled) {
-                for(let tblCount = 0; tblCount < lfHardPassTitlePhrases.length; tblCount++) {
-                    let currentTBLPhrase = lfHardPassTitlePhrases[tblCount].trim().toLowerCase();
+                for(const phrase of lfMatch.titleHardPass) {
+                    if(torrentTitle.includes(phrase)) {
+                        currentHidden = true;
+                        currentForceHide = true;
+                        if(russianRouletteBulletInChamber == false) {
+                            addTitleBadge("lfHardPassTitle", phrase);
 
-                    if(currentTBLPhrase != "") {
-                        if(torrentTitle.includes(currentTBLPhrase)) {
-                            currentHidden = true;
-                            currentForceHide = true;
-                            if(russianRouletteBulletInChamber == false) {
-                                titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfHardPassTitle">(${lfEscapeHTML(currentTBLPhrase)})</span>`;
-
-                                if(lfRemoveHardPassResults) {
-                                    torrents[i].classList.add("lfHardPassRemove");
-                                    countMe = 0;
-                                }
+                            if(lfRemoveHardPassResults) {
+                                torrents[i].classList.add("lfHardPassRemove");
+                                countMe = 0;
                             }
                         }
                     }
                 }
             }
 
-            // Scan title for lfWhitelistTitlePhrases
-            // ...For every whitelisted phrase:
             if(currentBypassWhitelist == false) {
-                for(let tblCount = 0; tblCount < lfWhitelistTitlePhrases.length; tblCount++) {
-                    let currentTWLPhrase = lfWhitelistTitlePhrases[tblCount].trim().toLowerCase();
-
-                    if(currentTWLPhrase != "") {
-                        if(torrentTitle.includes(currentTWLPhrase)) {
-                            currentWhitelisted = true;
-                            titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfWhitelistedTitle">(${lfEscapeHTML(currentTWLPhrase)})</span>`;
-                        }
+                for(const phrase of lfMatch.titleWhitelist) {
+                    if(torrentTitle.includes(phrase)) {
+                        currentWhitelisted = true;
+                        addTitleBadge("lfWhitelistedTitle", phrase);
                     }
                 }
+            }
+
+            if(titleBadges !== "") {
+                titleElement.insertAdjacentHTML("beforeend", titleBadges);
             }
 
             // For every tag in the current torrent
             let tagList = tagElement.querySelectorAll("a");
-            if(tagList) {
-                for(let k = 0; k < tagList.length; k++) {
-                    if(lfHardPassEnabled) {
-                        if(lfHardPassTags.includes(tagList[k].innerHTML) === true) {
-                            currentHidden = true;
-                            currentForceHide = true;
-                            if(russianRouletteBulletInChamber == false) {
-                                tagList[k].classList.add("lfHardPassTag");
+            for(let k = 0; k < tagList.length; k++) {
+                const tagName = tagList[k].innerHTML;
 
-                                if(lfRemoveHardPassResults) {
-                                    torrents[i].classList.add("lfHardPassRemove");
-                                    countMe = 0;
-                                }
-                            }
+                if(lfHardPassEnabled && lfMatch.tagHardPass.has(tagName)) {
+                    currentHidden = true;
+                    currentForceHide = true;
+                    if(russianRouletteBulletInChamber == false) {
+                        tagList[k].classList.add("lfHardPassTag");
+
+                        if(lfRemoveHardPassResults) {
+                            torrents[i].classList.add("lfHardPassRemove");
+                            countMe = 0;
                         }
                     }
+                }
 
-                    if(lfBlacklistTags.includes(tagList[k].innerHTML) === true) {
-                        currentHidden = true;
-                        if(russianRouletteBulletInChamber == false) {
-                            tagList[k].classList.add("lfHiddenTag");
-                        }
+                if(lfMatch.tagBlacklist.has(tagName)) {
+                    currentHidden = true;
+                    if(russianRouletteBulletInChamber == false) {
+                        tagList[k].classList.add("lfHiddenTag");
                     }
+                }
 
-                    if(currentBypassWhitelist == false) {
-                        if(lfWhitelistTags.includes(tagList[k].innerHTML) === true) {
-                            currentWhitelisted = true;
-                            tagList[k].classList.add("lfWhitelistedTag");
-                        }
-                    }
+                if(currentBypassWhitelist == false && lfMatch.tagWhitelist.has(tagName)) {
+                    currentWhitelisted = true;
+                    tagList[k].classList.add("lfWhitelistedTag");
                 }
             }
 
@@ -3476,41 +3475,10 @@ function saveData() {
 
         // Update cached copies of list: raw for saving, filtered for matching on this site
         lfRawLists[setting] = storedList;
-        switch(setting) {
-            case "lfTaglist":
-                lfBlacklistTaglist = strList;
-                lfBlacklistTags = lfScopeFilter(storedList);
-                break;
-            case "lfHardPassTaglist":
-                lfHardPassTaglist = strList;
-                lfHardPassTags = lfScopeFilter(storedList);
-                break;
-            case "lfWhitelist":
-                lfWhitelistTaglist = strList;
-                lfWhitelistTags = lfScopeFilter(storedList);
-                break;
-            case "lfBlacklistTitles":
-                lfBlacklistTitleList = strList;
-                lfBlacklistTitlePhrases = lfScopeFilter(storedList);
-                break;
-            case "lfHardPassTitles":
-                lfHardPassTitleList = strList;
-                lfHardPassTitlePhrases = lfScopeFilter(storedList);
-                break;
-            case "lfWhitelistTitles":
-                lfWhitelistTitleList = strList;
-                lfWhitelistTitlePhrases = lfScopeFilter(storedList);
-                break;
-            case "lfUploaders":
-                lfBlacklistUploadersList = strList;
-                lfBlacklistUploaders = lfScopeFilter(storedList);
-                break;
-            case "lfWhitelistUploaders":
-                lfWhitelistUploadersList = strList;
-                lfWhitelistUploaders = lfScopeFilter(storedList);
-                break;
-        }
+        lfListBindings[setting].setText(strList);
+        lfListBindings[setting].setItems(lfScopeFilter(storedList));
     }
+    lfBuildMatchers();
 
     let checkboxes = {
         lfObliviousModeEnabled: "lfCheckObliviousMode",
