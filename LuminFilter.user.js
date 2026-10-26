@@ -1687,6 +1687,343 @@ if(currentPage == "Notification filters") {
     }
 }
 
+// Filter one torrent row: hides it, highlights what matched, and adds the individual hide button.
+// "i" only needs to be unique per row (it is used for the eye icon's element id).
+function lfFilterRow(row, i) {
+    let tagElement = row.querySelector("td > div.tags");
+
+    if(!tagElement) {
+        return; // can't get a taglist, so this isn't a torrent row
+    }
+
+    let russianRouletteBulletInChamber = false;
+    if(lfRussianRouletteEnabled) {
+        let randNum = Math.floor(Math.random() * 6) + 1; // 1/6 chance to fire
+        if(randNum == 6) {
+            russianRouletteBulletInChamber = true;
+        }
+    }
+
+    let uploaderElement, titleElement;
+
+    if(currentPage == "Top 10") {
+        uploaderElement = row.querySelector("td:nth-child(10) > a");
+    } else {
+        uploaderElement = row.querySelector("td.user > a");
+    }
+
+    if(currentPage == "Collage") {
+        titleElement = row.querySelector("td > strong > a");
+    } else {
+        titleElement = row.querySelector("td > a");
+    }
+
+    let countMe = 1;
+    let currentHidden = false;
+    let currentWhitelisted = false;
+    let currentBypassWhitelist = false;
+    let currentForceHide = false;
+    let currentForceShow = false;
+
+    // Snapshot the pristine tags/title/uploader for the conditional rule
+    // engine. This has to happen before the title checks below, which
+    // append "(matched phrase)" markup to the title element.
+    let lfRuleContext = null;
+    if(lfConditionalEnabled && lfCompiledConditionals.rules.length > 0) {
+        let contextTags = new Set();
+        let contextTagNodes = tagElement.querySelectorAll("a");
+
+        for(let t = 0; t < contextTagNodes.length; t++) {
+            contextTags.add(contextTagNodes[t].innerHTML.trim().toLowerCase());
+        }
+
+        lfRuleContext = {
+            tags: contextTags,
+            title: titleElement ? titleElement.textContent.trim().toLowerCase() : "",
+            uploader: uploaderElement ? uploaderElement.innerHTML.trim().toLowerCase() : "",
+            site: lfSite.id
+        };
+    }
+
+    // Check if we are adding the hide button
+    if(lfIndividualUploadHidingEnabled) {
+        let torrentIconContainer = row.querySelector("td > span.torrent_icon_container");
+
+        if(torrentIconContainer) {
+            let lfToggleHideElement = document.createElement("span");
+            lfToggleHideElement.className = "icon";
+            lfToggleHideElement.innerHTML = `
+            <div class="icon_container">
+                <div class="icon_stack">
+                    <i class="font_icon torrent_icons clickable lfToggleIcon" id="lfToggleIcon_${i}">
+                        <img src="data:image/png;base64,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" />
+                    </i>
+                </div>
+            </div>
+            `;
+
+            lfToggleHideElement.title = "Filter this torrent with LuminFilter";
+            lfToggleHideElement.classList.add("lfToggleHideButton");
+
+            let actualIcon = lfToggleHideElement.querySelector("div > div > i");
+            let torrentID = titleElement.href.match(/([0-9]+)/)[0];
+            actualIcon.torrentID = torrentID;
+            actualIcon.onclick = function() { lfToggleIndividualRows(this); };
+
+            // Clear list status on right-click
+            actualIcon.addEventListener('contextmenu', function(event) {
+                event.preventDefault();
+                lfClearIndividualRows(this);
+            }, false);
+
+            torrentIconContainer.appendChild(lfToggleHideElement);
+
+            // Check if torrent is black/whitelisted this way
+            let currentBLIndex = lfIndividualUploadHidingBlacklist.indexOf(torrentID);
+            if(currentBLIndex > -1) {
+                if(russianRouletteBulletInChamber == false) {
+                    actualIcon.classList.add("lfIndividuallyBlacklisted");
+                    currentHidden = true;
+                    currentForceHide = true;
+                }
+            }
+
+            let currentWLIndex = lfIndividualUploadHidingWhitelist.indexOf(torrentID);
+            if(currentWLIndex > -1) {
+                actualIcon.classList.add("lfIndividuallyWhitelisted");
+                currentWhitelisted = true;
+                currentForceShow = true;
+            }
+
+            if(currentForceHide == false && currentForceShow == false) {
+                // Torrent not acted upon
+                actualIcon.classList.add("lfIndividuallyUntouched");
+            }
+        }
+    }
+
+    if(lfObliviousModeEnabled == true) {
+        tagElement.classList.add("hidden");
+    }
+
+    // Check if filtered via options
+    if(lfHideReportedEnabled) {
+        if(titleElement.querySelector("span.reported") !== null) {
+            currentHidden = true;
+        }
+    }
+
+    if(lfHideWarnedEnabled) {
+        if(row.classList.contains("redbar")) {
+            currentHidden = true;
+        }
+    }
+
+    if(lfHideUnseededEnabled) {
+        let selector = "td:nth-child(8)";
+
+        if(currentPage == "Collage") {
+            selector = "td:nth-child(7)";
+        }
+
+        let seeders = row.querySelector(selector);
+        if(seeders.classList.contains("r00")) {
+            currentHidden = true;
+            seeders.innerHTML = "(0)";
+        }
+    }
+    
+    // Your relationship with the torrent (snatched/seeding/grabbed/leeching); selectors and
+    // class names come from the current site's layout profile
+    let torrentIconElement = row.querySelector(lfSite.layout.statusIcon);
+
+    if(torrentIconElement) {
+        let statusChecks = [
+            [lfHideSnatchedEnabled, "snatched"],
+            [lfHideSeedingEnabled, "seeding"],
+            [lfHideGrabbedEnabled, "grabbed"],
+            [lfHideLeechingEnabled, "leeching"]
+        ];
+
+        for(const [enabled, status] of statusChecks) {
+            if(enabled && torrentIconElement.classList.contains(lfSite.layout.statusClasses[status])) {
+                currentHidden = true;
+
+                if(lfBypassWhitelistsEnabled) {
+                    currentBypassWhitelist = true;
+                }
+            }
+        }
+    }
+
+    if(lfHideBookmarkedEnabled) {
+        let bmElement = row.querySelector(lfSite.layout.bookmarked);
+        if(bmElement) {
+            currentHidden = true;
+
+            if(lfBypassWhitelistsEnabled) {
+                currentBypassWhitelist = true;
+            }
+        }
+    }
+
+    // Check uploaders
+    // No uploaders on collage and user uploaded pages
+    if(currentPage !== "Collage" && currentPage !== "Uploaded") {
+        if(!uploaderElement) { // If it is null, it's an anon upload
+            if(lfHideAnonUploadsEnabled) {
+                let anonName = row.querySelector("td > span.anon_name");
+                if(anonName && anonName.innerHTML == "anon") {
+                    currentHidden = true;
+                    if(russianRouletteBulletInChamber == false) {
+                        anonName.classList.add("lfHiddenUploader");
+                    }
+                }
+            }
+        } else { // Not an anon upload
+            let uploader = uploaderElement.innerHTML.trim().toLowerCase();
+
+            // Usernames are unique, so a blacklisted uploader needs no whitelist check
+            if(lfMatch.uploaderBlacklist.has(uploader)) {
+                currentHidden = true;
+                if(russianRouletteBulletInChamber == false) {
+                    uploaderElement.classList.add("lfHiddenUploader");
+                }
+            } else if(currentBypassWhitelist == false && lfMatch.uploaderWhitelist.has(uploader)) {
+                currentWhitelisted = true;
+                uploaderElement.classList.add("lfWhitelistedUploader");
+            }
+        }
+    }
+
+    // Match against the title as the site rendered it (before any badges are appended below)
+    const torrentTitle = titleElement.textContent.trim().toLowerCase();
+
+    // Scan the title against the phrase lists; matches are shown as "(phrase)" badges,
+    // collected here and appended in one go
+    let titleBadges = "";
+    const addTitleBadge = function(cssClass, phrase) {
+        titleBadges += ` <span class="${cssClass}">(${lfEscapeHTML(phrase)})</span>`;
+    };
+
+    for(const phrase of lfMatch.titleBlacklist) {
+        if(torrentTitle.includes(phrase)) {
+            currentHidden = true;
+            if(russianRouletteBulletInChamber == false) { addTitleBadge("lfHiddenTitle", phrase); }
+        }
+    }
+
+    if(lfHardPassEnabled) {
+        for(const phrase of lfMatch.titleHardPass) {
+            if(torrentTitle.includes(phrase)) {
+                currentHidden = true;
+                currentForceHide = true;
+                if(russianRouletteBulletInChamber == false) {
+                    addTitleBadge("lfHardPassTitle", phrase);
+
+                    if(lfRemoveHardPassResults) {
+                        row.classList.add("lfHardPassRemove");
+                        countMe = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    if(currentBypassWhitelist == false) {
+        for(const phrase of lfMatch.titleWhitelist) {
+            if(torrentTitle.includes(phrase)) {
+                currentWhitelisted = true;
+                addTitleBadge("lfWhitelistedTitle", phrase);
+            }
+        }
+    }
+
+    if(titleBadges !== "") {
+        titleElement.insertAdjacentHTML("beforeend", titleBadges);
+    }
+
+    // For every tag in the current torrent
+    let tagList = tagElement.querySelectorAll("a");
+    for(let k = 0; k < tagList.length; k++) {
+        const tagName = tagList[k].innerHTML;
+
+        if(lfHardPassEnabled && lfMatch.tagHardPass.has(tagName)) {
+            currentHidden = true;
+            currentForceHide = true;
+            if(russianRouletteBulletInChamber == false) {
+                tagList[k].classList.add("lfHardPassTag");
+
+                if(lfRemoveHardPassResults) {
+                    row.classList.add("lfHardPassRemove");
+                    countMe = 0;
+                }
+            }
+        }
+
+        if(lfMatch.tagBlacklist.has(tagName)) {
+            currentHidden = true;
+            if(russianRouletteBulletInChamber == false) {
+                tagList[k].classList.add("lfHiddenTag");
+            }
+        }
+
+        if(currentBypassWhitelist == false && lfMatch.tagWhitelist.has(tagName)) {
+            currentWhitelisted = true;
+            tagList[k].classList.add("lfWhitelistedTag");
+        }
+    }
+
+    // Conditional rules
+    // TODO: surface "why was this hidden" — we know rule.line/rule.source
+    // here, so a tooltip or data attribute on the row would be cheap.
+    if(lfRuleContext !== null) {
+        for(let r = 0; r < lfCompiledConditionals.rules.length; r++) {
+            let rule = lfCompiledConditionals.rules[r];
+
+            if(!lfEvaluateRuleNode(rule.ast, lfRuleContext)) { continue; }
+
+            if(rule.action === "SHOW") {
+                currentWhitelisted = true;
+            } else if(rule.action === "PASS") {
+                // Hard Pass tier: only individual filtering can override
+                currentHidden = true;
+                currentForceHide = true;
+
+                if(russianRouletteBulletInChamber == false && lfRemoveHardPassResults) {
+                    row.classList.add("lfHardPassRemove");
+                    countMe = 0;
+                }
+            } else {
+                // HIDE: blacklist tier, whitelists can still win
+                currentHidden = true;
+            }
+        }
+    }
+
+    // If forcing through individual filtering, ignore results
+    if(currentForceShow) {
+        currentHidden = false;
+        currentWhitelisted = true;
+    } else if(currentForceHide) {
+        currentHidden = true;
+        currentWhitelisted = false;
+    }
+
+    if(currentWhitelisted === true) {
+        row.classList.remove("hidden");
+        row.setAttribute("isLFHidden", "0");
+    } else if(currentHidden === true) {
+        if(russianRouletteBulletInChamber == false) {
+            row.style.backgroundColor = themes[lfSelectedTheme].hiddenBackgroundColor;
+            row.classList.add("hidden");
+            row.setAttribute("isLFHidden", "1");
+
+            count += countMe;
+        }
+    }
+}
+
 // +---------------------+
 // | Main filtering loop |
 // +---------------------+
@@ -1700,338 +2037,7 @@ if(currentPage == "Requests") {
 if(torrents) {
     if(!lfUnfilteredPages.includes(currentPage)) { // Skip filtering where it doesn't apply
         for(let i = 0; i < torrents.length; i++) {
-            let tagElement = torrents[i].querySelector("td > div.tags");
-
-            if(!tagElement) {
-                continue; // skip to next iteration if we can't get taglist
-            }
-
-            let russianRouletteBulletInChamber = false;
-            if(lfRussianRouletteEnabled) {
-                let randNum = Math.floor(Math.random() * 6) + 1; // 1/6 chance to fire
-                if(randNum == 6) {
-                    russianRouletteBulletInChamber = true;
-                }
-            }
-
-            let uploaderElement, titleElement;
-
-            if(currentPage == "Top 10") {
-                uploaderElement = torrents[i].querySelector("td:nth-child(10) > a");
-            } else {
-                uploaderElement = torrents[i].querySelector("td.user > a");
-            }
-
-            if(currentPage == "Collage") {
-                titleElement = torrents[i].querySelector("td > strong > a");
-            } else {
-                titleElement = torrents[i].querySelector("td > a");
-            }
-
-            let countMe = 1;
-            let currentHidden = false;
-            let currentWhitelisted = false;
-            let currentBypassWhitelist = false;
-            let currentForceHide = false;
-            let currentForceShow = false;
-
-            // Snapshot the pristine tags/title/uploader for the conditional rule
-            // engine. This has to happen before the title checks below, which
-            // append "(matched phrase)" markup to the title element.
-            let lfRuleContext = null;
-            if(lfConditionalEnabled && lfCompiledConditionals.rules.length > 0) {
-                let contextTags = new Set();
-                let contextTagNodes = tagElement.querySelectorAll("a");
-
-                for(let t = 0; t < contextTagNodes.length; t++) {
-                    contextTags.add(contextTagNodes[t].innerHTML.trim().toLowerCase());
-                }
-
-                lfRuleContext = {
-                    tags: contextTags,
-                    title: titleElement ? titleElement.textContent.trim().toLowerCase() : "",
-                    uploader: uploaderElement ? uploaderElement.innerHTML.trim().toLowerCase() : "",
-                    site: lfSite.id
-                };
-            }
-
-            // Check if we are adding the hide button
-            if(lfIndividualUploadHidingEnabled) {
-                let torrentIconContainer = torrents[i].querySelector("td > span.torrent_icon_container");
-
-                if(torrentIconContainer) {
-                    let lfToggleHideElement = document.createElement("span");
-                    lfToggleHideElement.className = "icon";
-                    lfToggleHideElement.innerHTML = `
-                    <div class="icon_container">
-                        <div class="icon_stack">
-                            <i class="font_icon torrent_icons clickable lfToggleIcon" id="lfToggleIcon_${i}">
-                                <img src="data:image/png;base64,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" />
-                            </i>
-                        </div>
-                    </div>
-                    `;
-
-                    lfToggleHideElement.title = "Filter this torrent with LuminFilter";
-                    lfToggleHideElement.classList.add("lfToggleHideButton");
-
-                    let actualIcon = lfToggleHideElement.querySelector("div > div > i");
-                    let torrentID = titleElement.href.match(/([0-9]+)/)[0];
-                    actualIcon.torrentID = torrentID;
-                    actualIcon.onclick = function() { lfToggleIndividualRows(this); };
-
-                    // Clear list status on right-click
-                    actualIcon.addEventListener('contextmenu', function(event) {
-                        event.preventDefault();
-                        lfClearIndividualRows(this);
-                    }, false);
-
-                    torrentIconContainer.appendChild(lfToggleHideElement);
-
-                    // Check if torrent is black/whitelisted this way
-                    let currentBLIndex = lfIndividualUploadHidingBlacklist.indexOf(torrentID);
-                    if(currentBLIndex > -1) {
-                        if(russianRouletteBulletInChamber == false) {
-                            actualIcon.classList.add("lfIndividuallyBlacklisted");
-                            currentHidden = true;
-                            currentForceHide = true;
-                        }
-                    }
-
-                    let currentWLIndex = lfIndividualUploadHidingWhitelist.indexOf(torrentID);
-                    if(currentWLIndex > -1) {
-                        actualIcon.classList.add("lfIndividuallyWhitelisted");
-                        currentWhitelisted = true;
-                        currentForceShow = true;
-                    }
-
-                    if(currentForceHide == false && currentForceShow == false) {
-                        // Torrent not acted upon
-                        actualIcon.classList.add("lfIndividuallyUntouched");
-                    }
-                }
-            }
-
-            if(lfObliviousModeEnabled == true) {
-                tagElement.classList.add("hidden");
-            }
-
-            // Check if filtered via options
-            if(lfHideReportedEnabled) {
-                if(titleElement.querySelector("span.reported") !== null) {
-                    currentHidden = true;
-                }
-            }
-
-            if(lfHideWarnedEnabled) {
-                if(torrents[i].classList.contains("redbar")) {
-                    currentHidden = true;
-                }
-            }
-
-            if(lfHideUnseededEnabled) {
-                let selector = "td:nth-child(8)";
-
-                if(currentPage == "Collage") {
-                    selector = "td:nth-child(7)";
-                }
-
-                let seeders = torrents[i].querySelector(selector);
-                if(seeders.classList.contains("r00")) {
-                    currentHidden = true;
-                    seeders.innerHTML = "(0)";
-                }
-            }
-    
-            // Your relationship with the torrent (snatched/seeding/grabbed/leeching); selectors and
-            // class names come from the current site's layout profile
-            let torrentIconElement = torrents[i].querySelector(lfSite.layout.statusIcon);
-
-            if(torrentIconElement) {
-                let statusChecks = [
-                    [lfHideSnatchedEnabled, "snatched"],
-                    [lfHideSeedingEnabled, "seeding"],
-                    [lfHideGrabbedEnabled, "grabbed"],
-                    [lfHideLeechingEnabled, "leeching"]
-                ];
-
-                for(const [enabled, status] of statusChecks) {
-                    if(enabled && torrentIconElement.classList.contains(lfSite.layout.statusClasses[status])) {
-                        currentHidden = true;
-
-                        if(lfBypassWhitelistsEnabled) {
-                            currentBypassWhitelist = true;
-                        }
-                    }
-                }
-            }
-
-            if(lfHideBookmarkedEnabled) {
-                let bmElement = torrents[i].querySelector(lfSite.layout.bookmarked);
-                if(bmElement) {
-                    currentHidden = true;
-
-                    if(lfBypassWhitelistsEnabled) {
-                        currentBypassWhitelist = true;
-                    }
-                }
-            }
-
-            // Check uploaders
-            // No uploaders on collage and user uploaded pages
-            if(currentPage !== "Collage" && currentPage !== "Uploaded") {
-                if(!uploaderElement) { // If it is null, it's an anon upload
-                    if(lfHideAnonUploadsEnabled) {
-                        let anonName = torrents[i].querySelector("td > span.anon_name");
-                        if(anonName && anonName.innerHTML == "anon") {
-                            currentHidden = true;
-                            if(russianRouletteBulletInChamber == false) {
-                                anonName.classList.add("lfHiddenUploader");
-                            }
-                        }
-                    }
-                } else { // Not an anon upload
-                    let uploader = uploaderElement.innerHTML.trim().toLowerCase();
-
-                    // Usernames are unique, so a blacklisted uploader needs no whitelist check
-                    if(lfMatch.uploaderBlacklist.has(uploader)) {
-                        currentHidden = true;
-                        if(russianRouletteBulletInChamber == false) {
-                            uploaderElement.classList.add("lfHiddenUploader");
-                        }
-                    } else if(currentBypassWhitelist == false && lfMatch.uploaderWhitelist.has(uploader)) {
-                        currentWhitelisted = true;
-                        uploaderElement.classList.add("lfWhitelistedUploader");
-                    }
-                }
-            }
-
-            // Match against the title as the site rendered it (before any badges are appended below)
-            const torrentTitle = titleElement.textContent.trim().toLowerCase();
-
-            // Scan the title against the phrase lists; matches are shown as "(phrase)" badges,
-            // collected here and appended in one go
-            let titleBadges = "";
-            const addTitleBadge = function(cssClass, phrase) {
-                titleBadges += ` <span class="${cssClass}">(${lfEscapeHTML(phrase)})</span>`;
-            };
-
-            for(const phrase of lfMatch.titleBlacklist) {
-                if(torrentTitle.includes(phrase)) {
-                    currentHidden = true;
-                    if(russianRouletteBulletInChamber == false) { addTitleBadge("lfHiddenTitle", phrase); }
-                }
-            }
-
-            if(lfHardPassEnabled) {
-                for(const phrase of lfMatch.titleHardPass) {
-                    if(torrentTitle.includes(phrase)) {
-                        currentHidden = true;
-                        currentForceHide = true;
-                        if(russianRouletteBulletInChamber == false) {
-                            addTitleBadge("lfHardPassTitle", phrase);
-
-                            if(lfRemoveHardPassResults) {
-                                torrents[i].classList.add("lfHardPassRemove");
-                                countMe = 0;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if(currentBypassWhitelist == false) {
-                for(const phrase of lfMatch.titleWhitelist) {
-                    if(torrentTitle.includes(phrase)) {
-                        currentWhitelisted = true;
-                        addTitleBadge("lfWhitelistedTitle", phrase);
-                    }
-                }
-            }
-
-            if(titleBadges !== "") {
-                titleElement.insertAdjacentHTML("beforeend", titleBadges);
-            }
-
-            // For every tag in the current torrent
-            let tagList = tagElement.querySelectorAll("a");
-            for(let k = 0; k < tagList.length; k++) {
-                const tagName = tagList[k].innerHTML;
-
-                if(lfHardPassEnabled && lfMatch.tagHardPass.has(tagName)) {
-                    currentHidden = true;
-                    currentForceHide = true;
-                    if(russianRouletteBulletInChamber == false) {
-                        tagList[k].classList.add("lfHardPassTag");
-
-                        if(lfRemoveHardPassResults) {
-                            torrents[i].classList.add("lfHardPassRemove");
-                            countMe = 0;
-                        }
-                    }
-                }
-
-                if(lfMatch.tagBlacklist.has(tagName)) {
-                    currentHidden = true;
-                    if(russianRouletteBulletInChamber == false) {
-                        tagList[k].classList.add("lfHiddenTag");
-                    }
-                }
-
-                if(currentBypassWhitelist == false && lfMatch.tagWhitelist.has(tagName)) {
-                    currentWhitelisted = true;
-                    tagList[k].classList.add("lfWhitelistedTag");
-                }
-            }
-
-            // Conditional rules
-            // TODO: surface "why was this hidden" — we know rule.line/rule.source
-            // here, so a tooltip or data attribute on the row would be cheap.
-            if(lfRuleContext !== null) {
-                for(let r = 0; r < lfCompiledConditionals.rules.length; r++) {
-                    let rule = lfCompiledConditionals.rules[r];
-
-                    if(!lfEvaluateRuleNode(rule.ast, lfRuleContext)) { continue; }
-
-                    if(rule.action === "SHOW") {
-                        currentWhitelisted = true;
-                    } else if(rule.action === "PASS") {
-                        // Hard Pass tier: only individual filtering can override
-                        currentHidden = true;
-                        currentForceHide = true;
-
-                        if(russianRouletteBulletInChamber == false && lfRemoveHardPassResults) {
-                            torrents[i].classList.add("lfHardPassRemove");
-                            countMe = 0;
-                        }
-                    } else {
-                        // HIDE: blacklist tier, whitelists can still win
-                        currentHidden = true;
-                    }
-                }
-            }
-
-            // If forcing through individual filtering, ignore results
-            if(currentForceShow) {
-                currentHidden = false;
-                currentWhitelisted = true;
-            } else if(currentForceHide) {
-                currentHidden = true;
-                currentWhitelisted = false;
-            }
-
-            if(currentWhitelisted === true) {
-                torrents[i].classList.remove("hidden");
-                torrents[i].setAttribute("isLFHidden", "0");
-            } else if(currentHidden === true) {
-                if(russianRouletteBulletInChamber == false) {
-                    torrents[i].style.backgroundColor = themes[lfSelectedTheme].hiddenBackgroundColor;
-                    torrents[i].classList.add("hidden");
-                    torrents[i].setAttribute("isLFHidden", "1");
-
-                    count += countMe;
-                }
-            }
+            lfFilterRow(torrents[i], i);
         }
     } else if(currentPage == "Torrent details") {
         if(lfHideUnseededEnabled) {
@@ -2250,40 +2256,35 @@ if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
         }
     } else {
         for(let i = 0; i < torrents.length; i++) {
-            // Tags
-            if(lfRCMTagsEnabled) {
-                let tagList = torrents[i].querySelectorAll("td > div.tags > a");
-                if(tagList !== null && tagList !== undefined) {
-                    for(let j = 0; j < tagList.length; j++) {
-                        tagList[j].classList.add("lfTagElement");
-                    }
-                }
-            }
-
-            // Titles
-            if(lfRCMTitlesEnabled) {
-                let titleElement;
-                if(currentPage == "Collage") {
-                    titleElement = torrents[i].querySelector("td > strong > a");
-                } else {
-                    titleElement = torrents[i].querySelector("td > a");
-                }
-                titleElement.classList.add("lfTitleElement");
-            }
-
-            // Uploaders
-            if(lfRCMUploadersEnabled) {
-                let uploaderElement = torrents[i].querySelector("td.user > a");
-
-                if(currentPage == "Top 10") {
-                    uploaderElement = torrents[i].querySelector("td:nth-child(10) > a");
-                }
-
-                if(currentPage !== "Collage" && currentPage !== "Uploaded" && uploaderElement !== null) {
-                    uploaderElement.classList.add("lfUploaderElement");
-                }
-            }
+            lfMarkRowForMenus(torrents[i]);
         }
+    }
+}
+
+// Attach the right-click menus to every marked element under root (safe to repeat)
+function lfBindMenus(root) {
+    root.querySelectorAll(".lfTagElement").forEach(function(el) { lfBindContextMenu(el, "tag"); });
+    root.querySelectorAll(".lfUploaderElement").forEach(function(el) { lfBindContextMenu(el, "uploader"); });
+    root.querySelectorAll(".lfTitleElement").forEach(function(el) { lfBindContextMenu(el, "title"); });
+}
+
+// Tag the tag, title and uploader elements of a listed row so right-click management can find them
+function lfMarkRowForMenus(row) {
+    // Tags
+    if(lfRCMTagsEnabled) {
+        row.querySelectorAll("td > div.tags > a").forEach(function(tag) { tag.classList.add("lfTagElement"); });
+    }
+
+    // Titles
+    if(lfRCMTitlesEnabled) {
+        let titleElement = row.querySelector(currentPage == "Collage" ? "td > strong > a" : "td > a");
+        if(titleElement) { titleElement.classList.add("lfTitleElement"); }
+    }
+
+    // Uploaders
+    if(lfRCMUploadersEnabled && currentPage !== "Collage" && currentPage !== "Uploaded") {
+        let uploaderElement = row.querySelector(currentPage == "Top 10" ? "td:nth-child(10) > a" : "td.user > a");
+        if(uploaderElement) { uploaderElement.classList.add("lfUploaderElement"); }
     }
 }
 
@@ -2573,17 +2574,10 @@ document.getElementById("lfCheckConditionalEnabled").onclick = function() {
 
 
 if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
-    function lfBindTagMenus() {
-        document.querySelectorAll(".lfTagElement").forEach(function(el) { lfBindContextMenu(el, "tag"); });
-    }
-
     if(currentPage == "Torrent details") {
-        new MutationObserver(lfBindTagMenus).observe(document.querySelector("#torrent_tags"), {subtree: true, childList: true});
+        new MutationObserver(function() { lfBindMenus(document); }).observe(document.querySelector("#torrent_tags"), {subtree: true, childList: true});
     }
-    lfBindTagMenus();
-
-    document.querySelectorAll(".lfUploaderElement").forEach(function(el) { lfBindContextMenu(el, "uploader"); });
-    document.querySelectorAll(".lfTitleElement").forEach(function(el) { lfBindContextMenu(el, "title"); });
+    lfBindMenus(document);
 
     document.getElementById("lfRCMClose").onclick = function() {
         this.parentNode.classList.add("hidden");
