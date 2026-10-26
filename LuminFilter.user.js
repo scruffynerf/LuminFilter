@@ -186,6 +186,9 @@ function lfDetectSite() {
 
 const lfSite = lfDetectSite();
 
+// Help text shown above the filter lists on the Tags, Titles and Uploaders tabs
+const lfScopeHelpHTML = `<span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@${Object.keys(lfSiteProfiles)[0]}/someone</b>, or list several sites with commas: <b>@${Object.keys(lfSiteProfiles).slice(0, 2).join(",")}/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>`;
+
 // Filter list entries are either plain or scoped:
 //   value                  applies on every site
 //   @site/value            applies only on that site
@@ -934,7 +937,7 @@ htmlContent.innerHTML = `
 
         <section id="lfContent1">
             <div class="lfFieldDiv">
-                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@${Object.keys(lfSiteProfiles)[0]}/someone</b>, or list several sites with commas: <b>@${Object.keys(lfSiteProfiles).slice(0, 2).join(",")}/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+                ${lfScopeHelpHTML}
             </div>
             <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfTagBlacklistHeader"><span class="lfEmoji">👎</span> Tag blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfBLEToggler">[?]</sup><br />
@@ -1012,7 +1015,7 @@ htmlContent.innerHTML = `
 
         <section id="lfContent2">
             <div class="lfFieldDiv">
-                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@${Object.keys(lfSiteProfiles)[0]}/someone</b>, or list several sites with commas: <b>@${Object.keys(lfSiteProfiles).slice(0, 2).join(",")}/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+                ${lfScopeHelpHTML}
             </div>
             <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfTitleBlacklistHeader"><span class="lfEmoji">👎</span> Title blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfTitleBLEToggler">[?]</sup><br />
@@ -1074,7 +1077,7 @@ htmlContent.innerHTML = `
 
         <section id="lfContent3">
             <div class="lfFieldDiv">
-                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@${Object.keys(lfSiteProfiles)[0]}/someone</b>, or list several sites with commas: <b>@${Object.keys(lfSiteProfiles).slice(0, 2).join(",")}/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+                ${lfScopeHelpHTML}
             </div>
             <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfUploaderBlacklistHeader"><span class="lfEmoji">👎</span> Uploader blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfUBLEToggler">[?]</sup><br />
