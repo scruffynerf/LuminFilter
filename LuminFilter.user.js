@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.5.1
+// @version      3.5.2
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -43,7 +43,7 @@
 //   xrt141     - conditional rules engine (AND/OR/NOT), semicolon-delimited lists, compact
 //                header buttons, "if all rows are hidden, go to next page", Open all via
 //                the userscript manager
-//   mchamster  - "Backfill results" button (NSE pull request #12, reworked here)
+//   mchamster  - "Backfill results" button (thanks for the code!)
 //   scruffynerf - LuminFilter: multi-site profiles, site-specific filters
 // See CHANGELOG.md for version history.
 
@@ -661,11 +661,11 @@ let lfAllHiddenGoNextEnabled = GM_getValue("lfAllHiddenGoNextEnabled", false);
 //   Backfill results button
 function lfClampPageLimit(value) {
     value = Number(value);
-    if(isNaN(value) || value < 1) { return 5; }
+    if(isNaN(value) || value < 1) { return 2; }
     return Math.min(Math.floor(value), 15);
 }
 let lfBackfillButtonEnabled = GM_getValue("lfBackfillButtonEnabled", true);
-let lfBackfillPageLimit = lfClampPageLimit(GM_getValue("lfBackfillPageLimit", 5));
+let lfBackfillPageLimit = lfClampPageLimit(GM_getValue("lfBackfillPageLimit", 2));
 
 //   Fonts
 let lfUIFont = GM_getValue("lfUIFont", "Helvetica");
@@ -1444,7 +1444,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <span class="lfExplanationSpan lfESOffset">(Loads the next result pages onto the current one and filters them like the rest)</span><br />
 
                     Pages to backfill per click: <br />
-                    <input type="text" class="lfInput" style="width: 50px;" value="${lfBackfillPageLimit}" id="lfBackfillPageLimit" /> <span class="lfExplanationSpan">(1-15, default 5)</span><br />
+                    <input type="text" class="lfInput" style="width: 50px;" value="${lfBackfillPageLimit}" id="lfBackfillPageLimit" /> <span class="lfExplanationSpan">(1-15, default 2)</span><br />
 
                     <br />
 
@@ -1585,7 +1585,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
             <section id="lfSettingsContent4">
                 <h3 class="lfH3">About</h3>
                 <p>
-                    Copyright &copy; 2015-2026 ceodoe, xrt141, mchamster, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141, and the Backfill results button is based on mchamster's pull request to NSE. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
+                    Copyright &copy; 2015-2026 ceodoe, xrt141, mchamster, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141, and the Backfill results button is based on code by mchamster, thank you! Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
                 </p>
 
                 <h3 class="lfH3">Statistics</h3>
@@ -2853,7 +2853,7 @@ function adjustHiddenHeaderCount(value) {
 
 // +----------------------------------------------------------------------+
 // | Backfill: load the following result pages onto this one and filter them |
-// | Idea and first implementation: mchamster (NSE pull request #12)          |
+// | Idea and first implementation: mchamster, thank you!                     |
 // +----------------------------------------------------------------------+
 function lfAbsoluteURL(href) {
     return new URL(href, window.location.href).href;

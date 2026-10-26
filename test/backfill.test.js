@@ -84,7 +84,7 @@ const click = (t, el) => el.dispatchEvent(new t.w.MouseEvent("click", { bubbles:
     assert.strictEqual(t.doc.getElementById("lfBackfillPageLimit").value, "15");
     t.doc.getElementById("lfBackfillPageLimit").value = "abc";
     t.w.__lf.saveData();
-    assert.strictEqual(JSON.parse(t.raw.lfBackfillPageLimit), 5);
+    assert.strictEqual(JSON.parse(t.raw.lfBackfillPageLimit), 2);
 
     console.log("backfill.test OK");
 })().catch(e => { console.error(e); process.exit(1); });

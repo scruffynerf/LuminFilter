@@ -146,7 +146,7 @@ Older changelogs can be found at [NSE's site](https://github.com/ceodoe/noshitem
 
 # Credits
 - **ceodoe**: author of [NSE](https://github.com/ceodoe/noshitempornium), which LuminFilter is forked from
-- **mchamster**: the "Backfill results" button, from [a pull request to NSE](https://github.com/ceodoe/noshitempornium/pull/12) that was never merged
+- **mchamster**: the "Backfill results" button. Thank you for the code!
 - **xrt141**: conditional rules engine, semicolon-delimited lists, compact header buttons, "if all rows are hidden, go to next page", and Open all via the userscript manager
 
 # Contribute
