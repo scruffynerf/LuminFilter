@@ -49,6 +49,6 @@ q.w.FileReader = class { readAsText(f) { this.result = f.text; this.onload(); } 
 const stored = {};
 q.w.GM_setValue = (k, v) => { stored[k] = v; };
 const file = { text: JSON.stringify({ nseTaglist: "a.b c.d", nseSelectedTheme: "nseThemeBaked", nseConditionalRules: "HIDE: $TA{x}", nseConditionalEnabled: true, nseSavedVersion: 1, other: 1 }) };
-q.w.importNseSettings({ target: { files: [file], value: "x" } });
+q.w.__lf.importNseSettings({ target: { files: [file], value: "x" } });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(stored)), { lfTaglist: "a.b c.d", lfSelectedTheme: "lfThemeBaked", lfConditionalRules: "HIDE: $TA{x}", lfConditionalEnabled: true });
 console.log("rules.test OK");

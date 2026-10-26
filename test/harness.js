@@ -3,7 +3,9 @@ const { JSDOM } = require("jsdom");
 const fs = require("fs");
 const path = require("path");
 const SCRIPT = fs.readFileSync(path.join(__dirname, "..", "LuminFilter.user.js"), "utf8");
-const END_MARKER = "} // End of filter page code";
+const END_MARKER = "} // End of lfMain";
+// Internals every test can reach through window.__lf (the script keeps them out of the global scope)
+const DEFAULT_EXPOSE = ["saveData", "removeItemFromList", "addItemToList", "importNseSettings", "lfBindContextMenu", "showRCMBox"];
 
 function row(id, title, tags, user, extra) {
     return `<tr class="torrent"><td><span class="torrent_icon_container"><a><span class="icon"></span></a></span><a class="x" href="/torrents.php?id=${id}">${title}</a><div class="tags">${tags.map(t => `<a href="/torrents.php?taglist=${t}">${t}</a>`).join(" ")}</div></td><td class="user"><a href="/user.php?id=1">${user}</a></td>${extra || ""}</tr>`;
@@ -27,8 +29,9 @@ function boot(opts) {
     if (o.withOpenInTab) w.GM_openInTab = (u, opt) => { opened.push([u, opt]); };
     w.open = u => { popups.push(u); };
     w.alert = () => {};
-    w.addEventListener("error", e => errors.push(e.message));
-    const expose = o.expose.length ? `window.__lf={${o.expose.map(n => `get ${n}(){return ${n};}`).join(",")}};\n` : "";
+    w.addEventListener("error", e => errors.push(e.message + (process.env.LF_STACK && e.error ? "\n" + e.error.stack : "")));
+    const names = [...new Set(DEFAULT_EXPOSE.concat(o.expose))];
+    const expose = `window.__lf={${names.map(n => `get ${n}(){return ${n};}`).join(",")}};\n`;
     try { w.eval(SCRIPT.replace(END_MARKER, expose + END_MARKER)); } catch (e) { errors.push(String((e && e.stack) || e)); }
     return { w, raw, errors, opened, popups, bad, dom, doc: w.document };
 }

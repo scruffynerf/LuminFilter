@@ -1,4 +1,10 @@
 # Latest changes
+## v3.4.0
+- Fixed: right-clicking a title did nothing (and threw an error) unless Hard Pass was enabled, because the menu tried to wire up a button that only exists with Hard Pass on
+- Faster filtering: tag, uploader and phrase lists are prepared once instead of being re-processed for every row, and title badges are added in one step
+- The eye icon (individual hide/show) now shares one code path between listings, Top 10 and the details page, and Top 10 matches torrent ids exactly (id 31 no longer also matches id 310)
+- The script now runs in strict mode inside its own function, so nothing leaks into the page's global scope
+- Less repeated code (about 150 lines fewer); the tests now cover list scoping, the rules engine, NSE import, the eye icon, the settings UI and the right-click menus
 ## v3.3.1
 - Fixed: on a torrent's details page, right-clicking a tag could open the menu several times, because the page re-bound the handler every time the taglist changed. Each element is now bound once
 - Fixed: title phrases are now matched against the title text rather than its HTML, so phrases containing `&` or `<` match, and the `(phrase)` badges added to a title can no longer trigger further matches

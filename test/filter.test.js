@@ -15,12 +15,12 @@ assert.deepStrictEqual(hidden(t), [false, true, false]);
 // Save keeps scoped entries of other sites and stays site-filtered in memory
 t = boot({ body, seed: seed(), expose: ["lfBlacklistTags"] });
 t.doc.getElementById("lfBlacklistTaglistArea").value = "bad.tag;@happyfappy/hf.only;@kufirc/other.only;New.Tag";
-t.w.saveData();
+t.w.__lf.saveData();
 assert.deepStrictEqual(t.bad, []);
 assert.strictEqual(JSON.parse(t.raw.lfTaglist), "@happyfappy/hf.only;@kufirc/other.only;bad.tag;new.tag");
 assert.strictEqual(JSON.stringify(Array.from(t.w.__lf.lfBlacklistTags).sort()), JSON.stringify(["bad.tag", "hf.only", "new.tag"]));
 t.doc.getElementById("lfBlacklistTaglistArea").value = "bad.tag;@happyfappy,kufirc/shared.tag";
-t.w.removeItemFromList("lfBlacklistTaglistArea", "shared.tag");
+t.w.__lf.removeItemFromList("lfBlacklistTaglistArea", "shared.tag");
 assert.strictEqual(t.doc.getElementById("lfBlacklistTaglistArea").value, "bad.tag;@kufirc/shared.tag");
 
 // Open all: manager API when present, popup fallback otherwise
@@ -46,7 +46,7 @@ let calls = [];
 const tag = t.doc.querySelector("div.tags a");
 const origAdd = tag.addEventListener.bind(tag);
 tag.addEventListener = function (type, fn, opt) { calls.push(type); return origAdd(type, fn, opt); };
-for (let i = 0; i < 3; i++) t.w.lfBindContextMenu(tag, "tag");
+for (let i = 0; i < 3; i++) t.w.__lf.lfBindContextMenu(tag, "tag");
 assert.ok(tag.dataset.lfRcmBound);              // already bound while the page was set up
 assert.deepStrictEqual(calls, []);               // so re-binding adds nothing
 tag.dispatchEvent(new t.w.MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
@@ -57,7 +57,7 @@ assert.strictEqual(t.doc.getElementById("lfRCMBoxTag").textContent, "fine");
 t = boot({ body: tb, seed: { lfBlacklistTitles: "plain", lfUpdateToastsEnabled: false } });
 const title = t.doc.querySelectorAll("tr.torrent a.x")[1];
 assert.ok(title.querySelector(".lfHiddenTitle"));
-t.w.lfBindContextMenu(title, "title");
+t.w.__lf.lfBindContextMenu(title, "title");
 title.dispatchEvent(new t.w.MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
 assert.strictEqual(t.doc.getElementById("lfRCMTitlePhraseText").value, "Plain");
 
@@ -79,7 +79,7 @@ assert.deepStrictEqual(hidden(t), [false, false, true, true, false, false]);
 t = boot({ body, seed: seed(), expose: ["lfMatch"] });
 assert.ok(!t.w.__lf.lfMatch.tagBlacklist.has("brand.new"));
 t.doc.getElementById("lfBlacklistTaglistArea").value = "bad.tag;brand.new";
-t.w.saveData();
+t.w.__lf.saveData();
 assert.ok(t.w.__lf.lfMatch.tagBlacklist.has("brand.new"));
 
 console.log("filter.test OK");

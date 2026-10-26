@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.3.1
+// @version      3.4.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -114,6 +114,13 @@ if(!lfIsFilterPage()) {
         document.addEventListener("keydown", lfArrowKeyHandler);
     }
 } else {
+    lfMain();
+}
+
+// Everything below runs only on pages that list torrents (see lfIsFilterPage above).
+// It lives in its own strict-mode function so none of it leaks into the page's global scope.
+function lfMain() {
+"use strict";
 
 // +----------------------------+
 // | Loading and initialization |
@@ -1771,203 +1778,12 @@ if(torrents) {
                     let actualIcon = lfToggleHideElement.querySelector("div > div > i");
                     let torrentID = titleElement.href.match(/([0-9]+)/)[0];
                     actualIcon.torrentID = torrentID;
-                    actualIcon.onclick = function() {
-                        let torrentParent = this.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode;
-
-                        // Refresh lists, they might have been changed in other tabs
-                        lfIndividualUploadHidingBlacklist = GM_getValue("lfIndividualUploadHidingBlacklist", new Array(0));
-                        lfIndividualUploadHidingWhitelist = GM_getValue("lfIndividualUploadHidingWhitelist", new Array(0));
-
-                        if(torrentParent) {
-                            if(!torrentParent.getAttribute("isLFHidden")) {
-                                torrentParent.setAttribute("isLFHidden", "0");
-                            }
-
-                            if(torrentParent.getAttribute("isLFHidden") === "1") {
-                                // Blacklisted, move to whitelist and unhide
-                                let currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
-                                if(currindex > -1) {
-                                    lfIndividualUploadHidingBlacklist.splice(currindex, 1);
-                                }
-
-                                currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
-                                if(currindex == -1) { // Only add if not already whitelisted to avoid duplicates
-                                    lfIndividualUploadHidingWhitelist.push(this.torrentID);
-                                }
-
-                                if(currentPage == "Top 10") {
-                                    let count = 0;
-                                    let torrentLinks = document.querySelectorAll("tr.torrent > td > a");
-                                    for(let i = 0; i < torrentLinks.length; i++) {
-                                        let regex = "id=" + this.torrentID;
-
-                                        if(torrentLinks[i].href.match(regex)) {
-                                            let currParent = torrentLinks[i].parentNode.parentNode;
-                                            currParent.classList.toggle("hidden");
-                                            currParent.setAttribute("isLFHidden", "0");
-                                            currParent.style.backgroundColor = null;
-
-                                            let currIcon = currParent.querySelector(".lfToggleIcon");
-                                            currIcon.classList.add("lfIndividuallyWhitelisted");
-                                            currIcon.classList.remove("lfIndividuallyBlacklisted");
-                                            currIcon.classList.remove("lfIndividuallyUntouched");
-
-                                            count--;
-                                        }
-                                    }
-
-                                    adjustHiddenHeaderCount(count);
-                                } else {
-                                    torrentParent.classList.toggle("hidden");
-                                    torrentParent.setAttribute("isLFHidden", "0");
-                                    torrentParent.style.backgroundColor = null;
-
-                                    this.classList.add("lfIndividuallyWhitelisted");
-                                    this.classList.remove("lfIndividuallyBlacklisted");
-                                    this.classList.remove("lfIndividuallyUntouched");
-
-                                    adjustHiddenHeaderCount(-1);
-                                }
-
-
-                            } else if(torrentParent.getAttribute("isLFHidden") == "0") {
-                                // Not hidden or is whitelisted, move to blacklist and hide
-                                let currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
-                                if(currindex > -1) {
-                                    lfIndividualUploadHidingWhitelist.splice(currindex, 1);
-                                }
-
-                                currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
-                                if(currindex == -1) { // Only add if not already blacklisted to avoid duplicates
-                                    lfIndividualUploadHidingBlacklist.push(this.torrentID);
-                                }
-
-                                if(currentPage == "Top 10") {
-                                    let count = 0;
-                                    let torrentLinks = document.querySelectorAll("tr.torrent > td > a");
-                                    for(let i = 0; i < torrentLinks.length; i++) {
-                                        let regex = "id=" + this.torrentID;
-
-                                        if(torrentLinks[i].href.match(regex)) {
-                                            let currParent = torrentLinks[i].parentNode.parentNode;
-                                            currParent.classList.toggle("hidden");
-                                            currParent.setAttribute("isLFHidden", "1");
-                                            currParent.style.backgroundColor = themes[lfSelectedTheme].hiddenBackgroundColor;
-
-                                            let currIcon = currParent.querySelector(".lfToggleIcon");
-                                            currIcon.classList.remove("lfIndividuallyWhitelisted");
-                                            currIcon.classList.remove("lfIndividuallyUntouched");
-                                            currIcon.classList.add("lfIndividuallyBlacklisted");
-
-                                            count++;
-                                        }
-                                    }
-
-                                    adjustHiddenHeaderCount(count);
-                                } else {
-                                    torrentParent.classList.toggle("hidden");
-                                    torrentParent.setAttribute("isLFHidden", "1");
-                                    torrentParent.style.backgroundColor = themes[lfSelectedTheme].hiddenBackgroundColor;
-
-                                    this.classList.remove("lfIndividuallyWhitelisted");
-                                    this.classList.remove("lfIndividuallyUntouched");
-                                    this.classList.add("lfIndividuallyBlacklisted");
-
-                                    adjustHiddenHeaderCount(1);
-                                }
-                            }
-
-                            //Save lists immediately after manipulating them
-                            GM_setValue("lfIndividualUploadHidingBlacklist", lfIndividualUploadHidingBlacklist);
-                            GM_setValue("lfIndividualUploadHidingWhitelist", lfIndividualUploadHidingWhitelist);
-
-                            if(lfRenumberTorrentsEnabled && currentPage == "Top 10") {
-                                renumberTorrents();
-                            }
-                        }
-                    };
+                    actualIcon.onclick = function() { lfToggleIndividualRows(this); };
 
                     // Clear list status on right-click
                     actualIcon.addEventListener('contextmenu', function(event) {
                         event.preventDefault();
-
-                        let torrentParent = this.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode;
-
-                        // Refresh lists, they might have been changed in other tabs
-                        lfIndividualUploadHidingBlacklist = GM_getValue("lfIndividualUploadHidingBlacklist", new Array(0));
-                        lfIndividualUploadHidingWhitelist = GM_getValue("lfIndividualUploadHidingWhitelist", new Array(0));
-
-                        if(torrentParent) {
-                            // Remove from both lists
-                            let wasRemovedFromWL = false;
-                            let wasRemovedFromBL = false;
-
-                            let currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
-                            if(currindex > -1) {
-                                lfIndividualUploadHidingWhitelist.splice(currindex, 1);
-                                wasRemovedFromWL = true;
-                            }
-
-                            currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
-                            if(currindex > -1) {
-                                lfIndividualUploadHidingBlacklist.splice(currindex, 1);
-                                wasRemovedFromBL = true;
-                            }
-
-                            if(wasRemovedFromWL || wasRemovedFromBL) {
-                                if(currentPage == "Top 10") {
-                                    let count = 0;
-                                    let torrentLinks = document.querySelectorAll("tr.torrent > td > a");
-                                    for(let i = 0; i < torrentLinks.length; i++) {
-                                        let regex = "id=" + this.torrentID;
-
-                                        if(torrentLinks[i].href.match(regex)) {
-                                            let currParent = torrentLinks[i].parentNode.parentNode;
-                                            currParent.setAttribute("isLFHidden", "0");
-                                            currParent.style.backgroundColor = null;
-
-                                            if(!wasRemovedFromWL) {
-                                                currParent.classList.toggle("hidden");
-                                            }
-
-                                            let currIcon = currParent.querySelector(".lfToggleIcon");
-                                            currIcon.classList.remove("lfIndividuallyWhitelisted");
-                                            currIcon.classList.remove("lfIndividuallyBlacklisted");
-                                            currIcon.classList.add("lfIndividuallyUntouched");
-
-                                            count--;
-                                        }
-                                    }
-
-                                    if(wasRemovedFromBL) {
-                                        adjustHiddenHeaderCount(count);
-                                    }
-                                } else {
-                                    if(!wasRemovedFromWL) {
-                                        torrentParent.classList.toggle("hidden");
-                                    }
-
-                                    torrentParent.setAttribute("isLFHidden", "0");
-                                    torrentParent.style.backgroundColor = null;
-
-                                    this.classList.remove("lfIndividuallyWhitelisted");
-                                    this.classList.remove("lfIndividuallyBlacklisted");
-                                    this.classList.add("lfIndividuallyUntouched");
-
-                                    if(wasRemovedFromBL) {
-                                        adjustHiddenHeaderCount(-1);
-                                    }
-                                }
-
-                                // Save lists immediately after manipulating them
-                                GM_setValue("lfIndividualUploadHidingBlacklist", lfIndividualUploadHidingBlacklist);
-                                GM_setValue("lfIndividualUploadHidingWhitelist", lfIndividualUploadHidingWhitelist);
-                            }
-
-                            if(lfRenumberTorrentsEnabled && currentPage == "Top 10") {
-                                renumberTorrents();
-                            }
-                        }
+                        lfClearIndividualRows(this);
                     }, false);
 
                     torrentIconContainer.appendChild(lfToggleHideElement);
@@ -2268,7 +2084,6 @@ if(torrents) {
 
         let titleElement2 = document.querySelector(".torrent_table > tbody > tr:nth-child(2) > td:nth-child(2) > strong");
         let titleElement = document.querySelector("#content > div:nth-child(1) > h2:nth-child(1)");
-        let firstSpan = document.querySelector("#content > div:nth-child(1) > h2:nth-child(1) > span:nth-child(1)");
         let h2textChild = Array.from(titleElement.childNodes).filter(node => node.nodeType === 3 && node.textContent.trim().length > 1)[0];
 
         let newSpan = document.createElement('span');
@@ -2318,7 +2133,7 @@ if(torrents) {
         }
 
 
-        // Add individual filter icon to torrent details page, a lot of duplicated code, will function-ize later
+        // Add individual filter icon to torrent details page
         if(lfIndividualUploadHidingEnabled) {
             let torrentIconContainer = document.querySelector("td > span.torrent_icon_container");
 
@@ -2342,73 +2157,20 @@ if(torrents) {
                 let torrentID = window.location.href.match(/id=([0-9]+)/)[1];
                 actualIcon.torrentID = torrentID;
                 actualIcon.onclick = function() {
-                    // Refresh lists, they might have been changed in other tabs
-                    lfIndividualUploadHidingBlacklist = GM_getValue("lfIndividualUploadHidingBlacklist", new Array(0));
-                    lfIndividualUploadHidingWhitelist = GM_getValue("lfIndividualUploadHidingWhitelist", new Array(0));
-
-                    if(lfIndividualUploadHidingBlacklist.includes(torrentID)) {
-                        // Blacklisted, move to whitelist and unhide
-                        let currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
-                        if(currindex > -1) {
-                            lfIndividualUploadHidingBlacklist.splice(currindex, 1);
-                        }
-
-                        currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
-                        if(currindex == -1) { // Only add if not already whitelisted to avoid duplicates
-                            lfIndividualUploadHidingWhitelist.push(this.torrentID);
-                        }
-
-                        this.classList.add("lfIndividuallyWhitelisted");
-                        this.classList.remove("lfIndividuallyBlacklisted");
-                        this.classList.remove("lfIndividuallyUntouched");
-                    } else {
-                        // Not hidden or is whitelisted, move to blacklist and hide
-                        let currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
-                        if(currindex > -1) {
-                            lfIndividualUploadHidingWhitelist.splice(currindex, 1);
-                        }
-
-                        currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
-                        if(currindex == -1) { // Only add if not already blacklisted to avoid duplicates
-                            lfIndividualUploadHidingBlacklist.push(this.torrentID);
-                        }
-
-                        this.classList.remove("lfIndividuallyWhitelisted");
-                        this.classList.remove("lfIndividuallyUntouched");
-                        this.classList.add("lfIndividuallyBlacklisted");
-                    }
-
-                    //Save lists immediately after manipulating them
-                    GM_setValue("lfIndividualUploadHidingBlacklist", lfIndividualUploadHidingBlacklist);
-                    GM_setValue("lfIndividualUploadHidingWhitelist", lfIndividualUploadHidingWhitelist);
+                    lfRefreshIndividualLists();
+                    let target = lfIndividualUploadHidingBlacklist.includes(this.torrentID) ? "Whitelisted" : "Blacklisted";
+                    lfMoveIndividual(this.torrentID, target);
+                    lfSetIndividualState(this, target);
+                    lfSaveIndividualLists();
                 };
 
                 // Clear list status on right-click
                 actualIcon.addEventListener('contextmenu', function(event) {
                     event.preventDefault();
-
-                    // Refresh lists, they might have been changed in other tabs
-                    lfIndividualUploadHidingBlacklist = GM_getValue("lfIndividualUploadHidingBlacklist", new Array(0));
-                    lfIndividualUploadHidingWhitelist = GM_getValue("lfIndividualUploadHidingWhitelist", new Array(0));
-
-                    // Remove from both lists
-                    let currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
-                    if(currindex > -1) {
-                        lfIndividualUploadHidingWhitelist.splice(currindex, 1);
-                    }
-
-                    currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
-                    if(currindex > -1) {
-                        lfIndividualUploadHidingBlacklist.splice(currindex, 1);
-                    }
-
-                    this.classList.remove("lfIndividuallyWhitelisted");
-                    this.classList.remove("lfIndividuallyBlacklisted");
-                    this.classList.add("lfIndividuallyUntouched");
-
-                    //Save lists immediately after manipulating them
-                    GM_setValue("lfIndividualUploadHidingBlacklist", lfIndividualUploadHidingBlacklist);
-                    GM_setValue("lfIndividualUploadHidingWhitelist", lfIndividualUploadHidingWhitelist);
+                    lfRefreshIndividualLists();
+                    lfMoveIndividual(this.torrentID, null);
+                    lfSetIndividualState(this, "Untouched");
+                    lfSaveIndividualLists();
                 }, false);
 
                 torrentIconContainer.appendChild(lfToggleHideElement);
@@ -2880,6 +2642,133 @@ function lfCheckAllHiddenGoNext() {
     }
 }
 
+// +----------------------------------------------------+
+// | Individually hidden / shown torrents (the eye icon) |
+// +----------------------------------------------------+
+
+// The lists are shared between tabs, so re-read them before acting and save right after
+function lfRefreshIndividualLists() {
+    lfIndividualUploadHidingBlacklist = GM_getValue("lfIndividualUploadHidingBlacklist", new Array(0));
+    lfIndividualUploadHidingWhitelist = GM_getValue("lfIndividualUploadHidingWhitelist", new Array(0));
+}
+
+function lfSaveIndividualLists() {
+    GM_setValue("lfIndividualUploadHidingBlacklist", lfIndividualUploadHidingBlacklist);
+    GM_setValue("lfIndividualUploadHidingWhitelist", lfIndividualUploadHidingWhitelist);
+}
+
+// Put a torrent on exactly one of the two lists ("Blacklisted" / "Whitelisted"), or on neither (null).
+// Returns where it was before: { blacklist: bool, whitelist: bool }
+function lfMoveIndividual(torrentID, target) {
+    const before = {
+        blacklist: lfIndividualUploadHidingBlacklist.includes(torrentID),
+        whitelist: lfIndividualUploadHidingWhitelist.includes(torrentID)
+    };
+
+    lfIndividualUploadHidingBlacklist = lfIndividualUploadHidingBlacklist.filter(id => id !== torrentID);
+    lfIndividualUploadHidingWhitelist = lfIndividualUploadHidingWhitelist.filter(id => id !== torrentID);
+
+    if(target === "Blacklisted") { lfIndividualUploadHidingBlacklist.push(torrentID); }
+    if(target === "Whitelisted") { lfIndividualUploadHidingWhitelist.push(torrentID); }
+
+    return before;
+}
+
+// Colour the eye icon: state is "Blacklisted", "Whitelisted" or "Untouched"
+function lfSetIndividualState(icon, state) {
+    for(const name of ["Blacklisted", "Whitelisted", "Untouched"]) {
+        icon.classList.toggle("lfIndividually" + name, name === state);
+    }
+}
+
+// The table row an eye icon sits in
+function lfIndividualRow(icon) {
+    return icon.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode;
+}
+
+// Rows that show this torrent. Top 10 can list one torrent several times and they all follow the click.
+function lfIndividualRows(icon) {
+    if(currentPage !== "Top 10") { return [lfIndividualRow(icon)]; }
+
+    const wanted = new RegExp("[?&]id=" + icon.torrentID + "(&|#|$)");
+    const rows = [];
+    document.querySelectorAll("tr.torrent > td > a").forEach(function(link) {
+        if(wanted.test(link.getAttribute("href") || "")) { rows.push(link.parentNode.parentNode); }
+    });
+    return rows;
+}
+
+// Flip a row between shown and hidden, with the matching background
+function lfApplyRowHidden(row, hide) {
+    row.classList.toggle("hidden");
+    row.setAttribute("isLFHidden", hide ? "1" : "0");
+    row.style.backgroundColor = hide ? themes[lfSelectedTheme].hiddenBackgroundColor : null;
+}
+
+function lfIconForRow(row, clickedIcon) {
+    return lfIndividualRow(clickedIcon) === row ? clickedIcon : row.querySelector(".lfToggleIcon");
+}
+
+// Click on the eye icon of a listed torrent: hidden -> whitelisted (shown), otherwise -> blacklisted (hidden)
+function lfToggleIndividualRows(icon) {
+    lfRefreshIndividualLists();
+
+    const clickedRow = lfIndividualRow(icon);
+    if(!clickedRow) { return; }
+
+    if(!clickedRow.getAttribute("isLFHidden")) {
+        clickedRow.setAttribute("isLFHidden", "0");
+    }
+
+    const wasHidden = clickedRow.getAttribute("isLFHidden") === "1";
+    const target = wasHidden ? "Whitelisted" : "Blacklisted";
+    lfMoveIndividual(icon.torrentID, target);
+
+    const rows = lfIndividualRows(icon);
+    for(const row of rows) {
+        lfApplyRowHidden(row, !wasHidden);
+        lfSetIndividualState(lfIconForRow(row, icon), target);
+    }
+
+    adjustHiddenHeaderCount(wasHidden ? -rows.length : rows.length);
+
+    // Save lists immediately after manipulating them
+    lfSaveIndividualLists();
+
+    if(lfRenumberTorrentsEnabled && currentPage == "Top 10") {
+        renumberTorrents();
+    }
+}
+
+// Right-click on the eye icon: forget any individual decision about this torrent
+function lfClearIndividualRows(icon) {
+    lfRefreshIndividualLists();
+
+    if(!lfIndividualRow(icon)) { return; }
+
+    const was = lfMoveIndividual(icon.torrentID, null);
+
+    if(was.blacklist || was.whitelist) {
+        const rows = lfIndividualRows(icon);
+        for(const row of rows) {
+            // A row that was only whitelisted is already visible; one that was blacklisted comes back
+            if(!was.whitelist) { row.classList.toggle("hidden"); }
+            row.setAttribute("isLFHidden", "0");
+            row.style.backgroundColor = null;
+            lfSetIndividualState(lfIconForRow(row, icon), "Untouched");
+        }
+
+        if(was.blacklist) { adjustHiddenHeaderCount(-rows.length); }
+
+        // Save lists immediately after manipulating them
+        lfSaveIndividualLists();
+    }
+
+    if(lfRenumberTorrentsEnabled && currentPage == "Top 10") {
+        renumberTorrents();
+    }
+}
+
 function toggleTorrents() {
     for(let k = 0; k < torrents.length; k++) {
         torrents[k].classList.toggle("hidden");
@@ -3216,13 +3105,16 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
             closeRCMBox();
         };
 
-        document.getElementById("lfRCMBoxHPTAdd").onclick = function() {
-            let currTitlePhrase = document.getElementById("lfRCMTitlePhraseText").value;
+        // The Hard Pass button only exists when Hard Pass is enabled
+        if(lfHardPassEnabled) {
+            document.getElementById("lfRCMBoxHPTAdd").onclick = function() {
+                let currTitlePhrase = document.getElementById("lfRCMTitlePhraseText").value;
 
-            addItemToList("lfHardPassTitleListArea", "lfWhitelistTitleListArea", currTitlePhrase);
-            saveData();
-            closeRCMBox();
-        };
+                addItemToList("lfHardPassTitleListArea", "lfWhitelistTitleListArea", currTitlePhrase);
+                saveData();
+                closeRCMBox();
+            };
+        }
 
         document.getElementById("lfRCMBoxWLAdd").onclick = function() {
             let currTitlePhrase = document.getElementById("lfRCMTitlePhraseText").value;
@@ -3897,4 +3789,4 @@ ${lfCustomCSSEnabled ? lfCustomCSS : ''}
 `);
 // End CSS section
 
-} // End of filter page code
+} // End of lfMain
