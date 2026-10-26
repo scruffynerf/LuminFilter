@@ -165,7 +165,9 @@ const lfSiteProfiles = {
     kufirc: {
         name: "Kufirc",
         hosts: [/(^|\.)kufirc\.com$/],
-        // TODO: unverified. Uses the default layout until Kufirc's markup is checked.
+        // Checked against Kufirc's listing and bookmark markup: the default layout's bookmark selector (i.bookmarked)
+        // matches. The status icon stack holds both a download and a leeching icon at once, so the snatched/seeding/
+        // grabbed class names are still unverified (TODO: need a row for a torrent in each state).
         layout: lfLayout()
     }
 };
