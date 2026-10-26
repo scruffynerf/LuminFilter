@@ -75,12 +75,9 @@ Make sure the checkbox for "Hide tags in lists" is **unchecked** in your user se
 
 Torrents matching your blacklist rules will now be hidden, and can be shown by clicking the "Toggle X hidden torrents" button. Torrents matching whitelist rules will be shown regardless of blacklist rules. To hide individual torrents, click the eye icon that appears next to it. For more options and information, be sure to check out the settings page within LuminFilter!
 
-You can also check out the latest changes in the [changelog](https://github.com/scruffynerf/LuminFilter/blob/master/CHANGELOG.md). Older changelogs can be found at [NSE's site](https://github.com/ceodoe/noshitempornium).
+You can also check out the latest changes in the [changelog](https://github.com/scruffynerf/LuminFilter/blob/master/CHANGELOG.md).
 
-# Coming from NSE?
-LuminFilter is a separate script with its own storage, so you can install it alongside NSE and try it out without touching your NSE setup. To bring your lists and settings over, export them from NSE (Options > Settings > Data management > *Export NSE data*), then in LuminFilter use *Import NSE data* in the same place. This only reads the file; it never modifies NSE.
-
-## Replacing the old arrow-key script
+# Replacing the old arrow-key script
 Arrow-key navigation used to be a separate companion script. It is now built into LuminFilter (Settings > *Use the arrow keys on every other page of the site too*), so you can uninstall the companion.
 
 # Important note on data loss
@@ -140,6 +137,11 @@ Go to the results tab you clicked the button in, and your browser will tell you 
 ## A bug was found, another issue not listed, or the solution described doesn't work
 - [Make sure you are using a supported browser and a supported userscript engine.](https://github.com/scruffynerf/LuminFilter#note-on-browsers-and-userscript-engines)
 - If you are still experiencing an issue not listed here, or the solution described does not work for you, you may have found a bug. You can create an issue in the GitHub repo, and I will do my best to assist you and/or fix the bug.
+
+# Coming from NSE?
+LuminFilter is a separate script with its own storage, so you can install it alongside NSE and try it out without touching your NSE setup. To bring your lists and settings over, export them from NSE (Options > Settings > Data management > *Export NSE data*), then in LuminFilter use *Import NSE data* in the same place. This only reads the file; it never modifies NSE.
+
+Older changelogs can be found at [NSE's site](https://github.com/ceodoe/noshitempornium).
 
 # Credits
 - **ceodoe**: author of [NSE](https://github.com/ceodoe/noshitempornium), which LuminFilter is forked from

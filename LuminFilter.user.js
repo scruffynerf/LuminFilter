@@ -96,6 +96,8 @@ function lfArrowKeyHandler(event) {
 
 // Pages that have torrent lists LuminFilter can filter. On every other page of a supported
 // site, LuminFilter does nothing except (optionally) arrow key navigation.
+// Note: bookmarks.php is deliberately not a filter page. What you bookmarked is your own curated list, so
+// nothing is hidden there ("Hide bookmarked" still applies on listings, collages and notifications).
 function lfIsFilterPage() {
     const path = window.location.pathname;
     const query = window.location.search;

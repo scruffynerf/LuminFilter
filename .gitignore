@@ -2,3 +2,23 @@
 .jshintrc
 .directory
 *.txt
+# Editors and OS
+.idea
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node / test tooling
+node_modules
+package-lock.json
+npm-debug.log*
+
+# Local files
+*.log
+*.bak
+*.orig
+*.rej
+*.tmp
+.env
