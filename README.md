@@ -15,7 +15,30 @@ jerk.off.instruction            applies everywhere
 @empornium,kufirc/some.tag      on Empornium and Kufirc, not HappyFappy
 ```
 
-Site names are `empornium`, `happyfappy` and `kufirc`. This works in every tag, title and uploader list. Titles can contain spaces (`@kufirc/some phrase`), since only the leading `@site/` is special.
+Entries in every list are separated by semicolons: `scat;piss.drinking;@happyfappy/someuser`. Site names are `empornium`, `happyfappy` and `kufirc`. This works in every tag, title and uploader list. Titles can contain spaces (`@kufirc/some phrase`), since only the leading `@site/` is special.
+
+# Conditional rules
+For anything a plain list can't say, turn on **Conditional rules** in Options > Settings > Filtering and use the new *Conditional* tab. One rule per line, written as `ACTION: expression`:
+
+```
+# Block an uploader, but keep the good stuff
+HIDE: $UP{wickedwitch} AND NOT ($TA{munchkin} OR $TI{Emerald City})
+
+# Only hide this tag in compilations
+HIDE: $TA{solo} AND $TI{compilation}
+
+# Whitelist an uploader on one site only
+SHOW: $SI{happyfappy} AND $UP{someuser}
+
+# Never show these, no matter what
+PASS: $TA{scat} OR $TA{puke}
+```
+
+- Actions: `HIDE` (like the blacklists; whitelists can still win), `PASS` (like Hard Pass), `SHOW` (like the whitelists)
+- Selectors: `$TA{tag}`, `$UP{uploader}`, `$TI{title phrase}`, `$SI{site}`
+- Operators: `AND`, `OR`, `NOT` and parentheses. `NOT` binds tightest, then `AND`, then `OR`
+- Text inside `{ }` is literal, so a title phrase can contain the words AND, OR and NOT
+- Blank lines and lines starting with `#` are ignored, and mistakes are flagged as you type
 
 # Features
 - Maintain a blacklist of tags, titles, and uploaders you'd like to automatically hide
@@ -25,6 +48,8 @@ Site names are `empornium`, `happyfappy` and `kufirc`. This works in every tag, 
 - Click a button to see the list of hidden torrents
 - Highlighting based on your lists, so you'll always know why a torrent was hidden or whitelisted
 - Neat toggle button and GUI to manage lists and settings
+- Conditional rules: combine tags, titles, uploaders and sites with AND, OR and NOT
+- Optionally jump to the next page when everything on a page is hidden
 - Actively updated
 - Lots more!
 
@@ -86,7 +111,7 @@ The files produced by these two backup methods use the same format (JSON), and s
 # Troubleshooting
 ## The script doesn't load or content isn't being hidden
 - [Make sure you are using a supported browser and a supported userscript engine.](https://github.com/scruffynerf/LuminFilter#note-on-browsers-and-userscript-engines)
-- Make sure there are no foreign characters in any of your filter lists, and that it is properly formatted. The script does some checks to make sure it looks okay, but it can't catch everything. Your lists should be space separated (semicolons for titles), and words within tags are separated by periods, just like the tags on the site.
+- Make sure there are no foreign characters in any of your filter lists, and that it is properly formatted. The script does some checks to make sure it looks okay, but it can't catch everything. Your lists should be separated by semicolons (`;`) and entries should not contain stray characters. Old space-separated lists are converted automatically. Words within tags are separated by periods, just like the tags on the site.
 
 ## Right-clicking torrent titles to open them in a new tab doesn't work anymore
 - This is because Right-Click Management is enabled. You can either:
@@ -112,6 +137,10 @@ Go to the results tab you clicked the button in, and your browser will tell you 
 ## A bug was found, another issue not listed, or the solution described doesn't work
 - [Make sure you are using a supported browser and a supported userscript engine.](https://github.com/scruffynerf/LuminFilter#note-on-browsers-and-userscript-engines)
 - If you are still experiencing an issue not listed here, or the solution described does not work for you, you may have found a bug. You can create an issue in the GitHub repo, post in the thread on Emp, or send me a message there, and I will do my best to assist you and/or fix the bug.
+
+# Credits
+- **ceodoe**: author of [NoShitEmpornium](https://github.com/ceodoe/noshitempornium), which LuminFilter is forked from
+- **xrt141**: conditional rules engine, semicolon-delimited lists, compact header buttons, "if all rows are hidden, go to next page", and Open all via the userscript manager
 
 # Contribute
 You can also contribute by reporting bugs, submitting feature requests, pull requests, or just generally using LuminFilter to its fullest. Thanks for considering it.

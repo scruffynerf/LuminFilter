@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.1.0
+// @version      3.2.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -9,7 +9,7 @@
 // @supportURL   https://github.com/scruffynerf/LuminFilter/issues
 // @homepageURL  https://github.com/scruffynerf/LuminFilter/
 // @icon         https://www.google.com/s2/favicons?domain=empornium.sx
-// @author       ceodoe, scruffynerf
+// @author       ceodoe, xrt141, scruffynerf
 // @include      /^https://www\.empornium\.(me|sx|is)/torrents\.php*/
 // @include      /^https://www\.empornium\.(me|sx|is)/collage\/*
 // @include      /^https://www\.empornium\.(me|sx|is)/top10\.php*/
@@ -40,9 +40,10 @@
 // @grant        GM_listValues
 // @grant        GM_deleteValue
 // @grant        GM_addStyle
+// @grant        GM_openInTab
 // ==/UserScript==
 //
-// Copyright © 2015-2026 ceodoe, scruffynerf
+// Copyright © 2015-2026 ceodoe, xrt141, scruffynerf
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -57,6 +58,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// Credits:
+//   ceodoe     - NoShitEmpornium, the original script this is forked from
+//   xrt141     - conditional rules engine (AND/OR/NOT), semicolon-delimited lists, compact
+//                header buttons, "if all rows are hidden, go to next page", Open all via
+//                the userscript manager
+//   scruffynerf - LuminFilter: multi-site profiles, site-specific filters
+// See CHANGELOG.md for version history.
 
 // +----------------------------+
 // | Loading and initialization |
@@ -83,7 +91,9 @@ const lfDefaultLayout = {
     // The class names that icon carries for each state
     statusClasses: { snatched: "snatched", seeding: "seeding", grabbed: "grabbed", leeching: "leeching" },
     // Element present in a torrent row when it's bookmarked
-    bookmarked: "i.bookmarked"
+    bookmarked: "i.bookmarked",
+    // The "next page" pager link (used by "If all rows are hidden, go to next page")
+    nextPage: "a.pager_next[href]"
 };
 
 function lfLayout(overrides = {}) {
@@ -168,62 +178,309 @@ function lfRemoveValueForSite(entries, value) {
     return result;
 }
 
+// +--------------------------------------------------------------------------+
+// | All filter lists (tags, titles, uploaders) are semicolon-separated.       |
+// | Legacy space-separated tag/uploader lists are migrated automatically.     |
+// +--------------------------------------------------------------------------+
+
+const LF_DELIMITER = ";";
+
+// Parse a stored/typed list string into a clean array.
+// allowSpaces = true for lists whose entries may contain spaces (title phrases).
+function lfParseList(listString, allowSpaces = false) {
+    if(listString === null || listString === undefined) { return new Array(0); }
+
+    // Tags and uploaders never contain spaces, so whitespace is also treated as
+    // a delimiter. This transparently migrates old space-separated lists.
+    let parts = allowSpaces ? String(listString).split(/[;\n\r]+/) : String(listString).split(/[;\s]+/);
+
+    return parts.map(item => item.trim()).filter(item => item !== "");
+}
+
+// Turn an array back into the canonical semicolon-separated string
+function lfStringifyList(listArray) {
+    return listArray.join(LF_DELIMITER);
+}
+
+// Load, normalize, sort and re-save a filter list in one go
+function lfInitList(settingName, defaultValue, allowSpaces = false) {
+    let items = lfParseList(GM_getValue(settingName, defaultValue), allowSpaces);
+    items = [...new Set(items)];
+    items.sort();
+
+    let listString = lfStringifyList(items);
+    GM_setValue(settingName, listString);
+
+    return [listString, items];
+}
+
 // Load and initialize saved filter lists
-let lfBlacklistTaglist = GM_getValue("lfTaglist", "enter.tags.here separated.by.spaces no.newlines").trim();
-let lfBlacklistTags = lfBlacklistTaglist.split(" ");
-lfBlacklistTags.sort();
-lfBlacklistTaglist = lfBlacklistTags.join(" ");
-if(lfBlacklistTags.length === 1 && lfBlacklistTags[0] === "") { lfBlacklistTags = new Array(0); }
-GM_setValue("lfTaglist", lfBlacklistTaglist);
+let [lfBlacklistTaglist, lfBlacklistTags] = lfInitList("lfTaglist", "enter.tags.here;separated.by.semicolons;no.newlines");
+let [lfHardPassTaglist, lfHardPassTags] = lfInitList("lfHardPassTaglist", "enter.hard.pass.tags.here;big.poopies;gushing.blood");
+let [lfWhitelistTaglist, lfWhitelistTags] = lfInitList("lfWhitelist", "whitelist.tags;go.here");
 
-let lfHardPassTaglist = GM_getValue("lfHardPassTaglist", "enter.hard.pass.tags.here big.poopies gushing.blood").trim();
-let lfHardPassTags = lfHardPassTaglist.split(" ");
-lfHardPassTags.sort();
-lfHardPassTaglist = lfHardPassTags.join(" ");
-if(lfHardPassTags.length === 1 && lfHardPassTags[0] === "") { lfHardPassTags = new Array(0); }
-GM_setValue("lfHardPassTaglist", lfHardPassTaglist);
+let [lfBlacklistTitleList, lfBlacklistTitlePhrases] = lfInitList("lfBlacklistTitles", "this is a title phrase;this is another title phrase", true);
+let [lfHardPassTitleList, lfHardPassTitlePhrases] = lfInitList("lfHardPassTitles", "this is a title phrase;this is another title phrase", true);
+let [lfWhitelistTitleList, lfWhitelistTitlePhrases] = lfInitList("lfWhitelistTitles", "this is a title phrase;this is another title phrase", true);
 
-let lfWhitelistTaglist = GM_getValue("lfWhitelist", "whitelist.tags go.here").trim();
-let lfWhitelistTags = lfWhitelistTaglist.split(" ");
-lfWhitelistTags.sort();
-lfWhitelistTaglist = lfWhitelistTags.join(" ");
-if(lfWhitelistTags.length === 1 && lfWhitelistTags[0] === "") { lfWhitelistTags = new Array(0); }
-GM_setValue("lfWhitelist", lfWhitelistTaglist);
+let [lfBlacklistUploadersList, lfBlacklistUploaders] = lfInitList("lfUploaders", "PutUserNamesHere;SeparatedBySemicolons;NoNewlines");
+let [lfWhitelistUploadersList, lfWhitelistUploaders] = lfInitList("lfWhitelistUploaders", "PutUserNamesHere;SeparatedBySemicolons;NoNewlines");
 
-let lfBlacklistTitleList = GM_getValue("lfBlacklistTitles", "this is a title phrase;this is another title phrase").trim();
-let lfBlacklistTitlePhrases = lfBlacklistTitleList.split(";");
-lfBlacklistTitlePhrases.sort();
-lfBlacklistTitleList = lfBlacklistTitlePhrases.join(";");
-if(lfBlacklistTitlePhrases.length === 1 && lfBlacklistTitlePhrases[0] === "") { lfBlacklistTitlePhrases = new Array(0); }
-GM_setValue("lfBlacklistTitles", lfBlacklistTitleList);
+// +--------------------------------------------------------------------------+
+// | Conditional rules engine                                                  |
+// |                                                                           |
+// | One rule per line:  ACTION: <expression>                                  |
+// |   ACTION     HIDE (blacklist tier) | PASS (Hard Pass tier) | SHOW (white) |
+// |   selectors  $TA{tag}  $UP{uploader}  $TI{title phrase}                   |
+// |   operators  NOT > AND > OR, parentheses to override                      |
+// |                                                                           |
+// | The lexer is mode-switched: operator keywords are ONLY recognised outside |
+// | of {} braces, so a title phrase may freely contain the words AND, OR and  |
+// | NOT without any escaping. Inside braces only \} and \\ are special.       |
+// |                                                                           |
+// | Example:                                                                  |
+// |   HIDE: $UP{wickedwitch} AND NOT ($TA{munchkin} OR $TI{Emerald City})     |
+// +--------------------------------------------------------------------------+
 
-let lfHardPassTitleList = GM_getValue("lfHardPassTitles", "this is a title phrase;this is another title phrase").trim();
-let lfHardPassTitlePhrases = lfHardPassTitleList.split(";");
-lfHardPassTitlePhrases.sort();
-lfHardPassTitleList = lfHardPassTitlePhrases.join(";");
-if(lfHardPassTitlePhrases.length === 1 && lfHardPassTitlePhrases[0] === "") { lfHardPassTitlePhrases = new Array(0); }
-GM_setValue("lfHardPassTitles", lfHardPassTitleList);
+const LF_RULE_ACTIONS = ["HIDE", "PASS", "SHOW"];
+const LF_RULE_SELECTORS = { TA: "tag", UP: "uploader", TI: "title", SI: "site" };
 
-let lfWhitelistTitleList = GM_getValue("lfWhitelistTitles", "this is a title phrase;this is another title phrase").trim();
-let lfWhitelistTitlePhrases = lfWhitelistTitleList.split(";");
-lfWhitelistTitlePhrases.sort();
-lfWhitelistTitleList = lfWhitelistTitlePhrases.join(";");
-if(lfWhitelistTitlePhrases.length === 1 && lfWhitelistTitlePhrases[0] === "") { lfWhitelistTitlePhrases = new Array(0); }
-GM_setValue("lfWhitelistTitles", lfWhitelistTitleList);
+// Rules are stored verbatim (newline-separated) so operator keywords and
+// punctuation survive a save/load round trip untouched.
+let lfConditionalRulesText = String(GM_getValue("lfConditionalRules", ""));
+GM_setValue("lfConditionalRules", lfConditionalRulesText);
 
-let lfBlacklistUploadersList = GM_getValue("lfUploaders", "PutUserNamesHere SeparatedBySpaces NoNewlines").trim();
-let lfBlacklistUploaders = lfBlacklistUploadersList.split(" ");
-lfBlacklistUploaders.sort();
-lfBlacklistUploadersList = lfBlacklistUploaders.join(" ");
-if(lfBlacklistUploaders.length === 1 && lfBlacklistUploaders[0] === "") { lfBlacklistUploaders = new Array(0); }
-GM_setValue("lfUploaders", lfBlacklistUploadersList);
+function lfRuleError(message, position) {
+    let error = new Error(message);
+    error.lfPosition = position;
+    return error;
+}
 
-let lfWhitelistUploadersList = GM_getValue("lfWhitelistUploaders", "PutUserNamesHere SeparatedBySpaces NoNewlines").trim();
-let lfWhitelistUploaders = lfWhitelistUploadersList.split(" ");
-lfWhitelistUploaders.sort();
-lfWhitelistUploadersList = lfWhitelistUploaders.join(" ");
-if(lfWhitelistUploaders.length === 1 && lfWhitelistUploaders[0] === "") { lfWhitelistUploaders = new Array(0); }
-GM_setValue("lfWhitelistUploaders", lfWhitelistUploadersList);
+// Turn one expression string into a token array.
+// Token kinds: selector, and, or, not, lparen, rparen
+function lfTokenizeRule(input) {
+    let tokens = new Array(0);
+    let i = 0;
+
+    while(i < input.length) {
+        let char = input[i];
+
+        // Skip whitespace between tokens
+        if(/\s/.test(char)) { i++; continue; }
+
+        if(char === "(") { tokens.push({ kind: "lparen", position: i }); i++; continue; }
+        if(char === ")") { tokens.push({ kind: "rparen", position: i }); i++; continue; }
+
+        // Selector: $XX{ ...literal... }
+        if(char === "$") {
+            let start = i;
+            let code = input.substr(i + 1, 2).toUpperCase();
+
+            if(!Object.prototype.hasOwnProperty.call(LF_RULE_SELECTORS, code)) {
+                throw lfRuleError(`Unknown selector "$${input.substr(i + 1, 2)}". Use $TA, $UP, $TI or $SI.`, start);
+            }
+
+            if(input[i + 3] !== "{") {
+                throw lfRuleError(`Expected "{" after $${code}.`, i + 3);
+            }
+
+            // Literal mode: consume everything up to the closing brace.
+            // Operators and parens have no meaning in here.
+            let literal = "";
+            let j = i + 4;
+            let closed = false;
+
+            while(j < input.length) {
+                if(input[j] === "\\" && (input[j + 1] === "}" || input[j + 1] === "{" || input[j + 1] === "\\")) {
+                    literal += input[j + 1];
+                    j += 2;
+                    continue;
+                }
+
+                if(input[j] === "}") { closed = true; break; }
+
+                // A bare "{" in here almost always means the user forgot a "}"
+                // earlier, so the literal has silently swallowed the rest of the
+                // rule. Without this check the expression would still parse and
+                // quietly do the wrong thing.
+                if(input[j] === "{") {
+                    throw lfRuleError(`Unexpected "{" inside $${code}{...} — you are probably missing a closing "}". Write \\{ if you really meant a literal brace.`, j);
+                }
+
+                literal += input[j];
+                j++;
+            }
+
+            if(!closed) {
+                throw lfRuleError(`Unterminated $${code}{...} — missing a closing "}".`, start);
+            }
+
+            literal = literal.trim();
+            if(literal === "") {
+                throw lfRuleError(`$${code}{} is empty.`, start);
+            }
+
+            tokens.push({ kind: "selector", type: LF_RULE_SELECTORS[code], value: literal.toLowerCase(), position: start });
+            i = j + 1;
+            continue;
+        }
+
+        // Operator keyword (only reachable outside braces)
+        let wordMatch = /^[A-Za-z]+/.exec(input.substring(i));
+        if(wordMatch !== null) {
+            let word = wordMatch[0].toUpperCase();
+
+            if(word === "AND" || word === "OR" || word === "NOT") {
+                tokens.push({ kind: word.toLowerCase(), position: i });
+                i += wordMatch[0].length;
+                continue;
+            }
+
+            throw lfRuleError(`Unexpected word "${wordMatch[0]}". Expected AND, OR, NOT or a $TA/$UP/$TI/$SI selector.`, i);
+        }
+
+        throw lfRuleError(`Unexpected character "${char}".`, i);
+    }
+
+    return tokens;
+}
+
+// Recursive descent parser. Precedence: NOT binds tightest, then AND, then OR.
+function lfParseRuleExpression(tokens) {
+    let pos = 0;
+
+    function peek() { return pos < tokens.length ? tokens[pos] : null; }
+    function endPosition() { return tokens.length > 0 ? tokens[tokens.length - 1].position : 0; }
+
+    function parsePrimary() {
+        let token = peek();
+
+        if(token === null) {
+            throw lfRuleError("Unexpected end of expression — something is missing here.", endPosition());
+        }
+
+        if(token.kind === "not") {
+            pos++;
+            return { kind: "not", operand: parsePrimary() };
+        }
+
+        if(token.kind === "lparen") {
+            pos++;
+            let inner = parseOr();
+            let next = peek();
+
+            if(next === null || next.kind !== "rparen") {
+                throw lfRuleError('Missing a closing ")".', token.position);
+            }
+
+            pos++;
+            return inner;
+        }
+
+        if(token.kind === "selector") {
+            pos++;
+            return { kind: "match", type: token.type, value: token.value };
+        }
+
+        throw lfRuleError(`Expected a $TA/$UP/$TI/$SI selector, NOT or "(" here.`, token.position);
+    }
+
+    function parseAnd() {
+        let left = parsePrimary();
+
+        while(peek() !== null && peek().kind === "and") {
+            pos++;
+            left = { kind: "and", left: left, right: parsePrimary() };
+        }
+
+        return left;
+    }
+
+    function parseOr() {
+        let left = parseAnd();
+
+        while(peek() !== null && peek().kind === "or") {
+            pos++;
+            left = { kind: "or", left: left, right: parseAnd() };
+        }
+
+        return left;
+    }
+
+    if(tokens.length === 0) {
+        throw lfRuleError("Expression is empty.", 0);
+    }
+
+    let ast = parseOr();
+    let leftover = peek();
+
+    if(leftover !== null) {
+        if(leftover.kind === "rparen") {
+            throw lfRuleError('Unmatched closing ")".', leftover.position);
+        }
+
+        throw lfRuleError("Expected AND or OR between conditions.", leftover.position);
+    }
+
+    return ast;
+}
+
+// Compile the whole textarea into { rules: [...], errors: [...] }
+function lfCompileConditionalRules(rulesText) {
+    let rules = new Array(0);
+    let errors = new Array(0);
+    let lines = String(rulesText === null || rulesText === undefined ? "" : rulesText).split(/\r?\n/);
+
+    for(let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+
+        // Blank lines and # comments are ignored
+        if(line === "" || line.startsWith("#") || line.startsWith("//")) { continue; }
+
+        let separatorIndex = line.indexOf(":");
+        if(separatorIndex === -1) {
+            errors.push({ line: i + 1, message: 'Missing an action. Start the line with "HIDE:", "PASS:" or "SHOW:".' });
+            continue;
+        }
+
+        let action = line.substring(0, separatorIndex).trim().toUpperCase();
+        if(!LF_RULE_ACTIONS.includes(action)) {
+            errors.push({ line: i + 1, message: `Unknown action "${action}". Use HIDE, PASS or SHOW.` });
+            continue;
+        }
+
+        let expression = line.substring(separatorIndex + 1);
+
+        try {
+            let ast = lfParseRuleExpression(lfTokenizeRule(expression));
+            rules.push({ action: action, ast: ast, line: i + 1, source: line });
+        } catch(error) {
+            errors.push({ line: i + 1, message: error.message });
+        }
+    }
+
+    return { rules: rules, errors: errors };
+}
+
+// Evaluate a compiled AST against one torrent.
+// context = { tags: Set of lowercase tags, title: lowercase string, uploader: lowercase string, site: site id }
+function lfEvaluateRuleNode(node, context) {
+    switch(node.kind) {
+        case "and":
+            return lfEvaluateRuleNode(node.left, context) && lfEvaluateRuleNode(node.right, context);
+        case "or":
+            return lfEvaluateRuleNode(node.left, context) || lfEvaluateRuleNode(node.right, context);
+        case "not":
+            return !lfEvaluateRuleNode(node.operand, context);
+        case "match":
+            if(node.type === "tag") { return context.tags.has(node.value); }
+            if(node.type === "uploader") { return context.uploader === node.value; }
+            if(node.type === "site") { return context.site === node.value; }
+            return context.title.includes(node.value);
+    }
+
+    return false;
+}
 
 // What's loaded above is the raw lists, as stored (including scoped entries for any site).
 // The textareas and saveData work on these. Matching uses the filtered copies below,
@@ -282,6 +539,12 @@ let lfBypassWhitelistsEnabled = GM_getValue("lfBypassWhitelistsEnabled", false);
 let lfHardPassEnabled = GM_getValue("lfHardPassEnabled", false);
 let lfRemoveHardPassResults = GM_getValue("lfRemoveHardPassResults", false);
 
+//   Conditional rules
+let lfConditionalEnabled = GM_getValue("lfConditionalEnabled", false);
+
+// Compile the saved rules once, up front
+let lfCompiledConditionals = lfCompileConditionalRules(lfConditionalRulesText);
+
 //  Interface options
 //   Oblivious mode
 let lfObliviousModeEnabled = GM_getValue("lfObliviousModeEnabled", false);
@@ -305,6 +568,7 @@ let lfFloatingToggleButtonEnabled = GM_getValue("lfFloatingToggleButtonEnabled",
 //   Open all button
 let lfOpenAllButtonEnabled = GM_getValue("lfOpenAllButtonEnabled", true);
 let lfOpenAllGoNextEnabled = GM_getValue("lfOpenAllGoNextEnabled", false);
+let lfAllHiddenGoNextEnabled = GM_getValue("lfAllHiddenGoNextEnabled", false);
 
 //   Fonts
 let lfUIFont = GM_getValue("lfUIFont", "Helvetica");
@@ -394,7 +658,7 @@ let lfThemeDescriptions = {
     lfThemeDefault: "White background with black text and blue accents",
     lfThemeLegacy: "Ye Olde Theme with a blue background and white text",
     lfThemeEdgy: "For the edgelord in all of us, red text on a black background",
-    lfThemeBaked: "Ayyyy 420 blaze it &mdash; Green and purple",
+    lfThemeBaked: "Ayyyy 420 blaze it — Green and purple",
     lfThemeDarkPurple: "A dark mode theme with purple highlights",
     lfThemeCustom: "Define your own colors using the text boxes below"
 };
@@ -460,7 +724,7 @@ if(currentPage == "Torrents") { //torrents.php is the only page we have in commo
                     clmCommentElement.innerHTML = "";
                     clmCommentElement.appendChild(gcdCommentElement);
                 }
-                
+
             }
         }
     }, lfTimeout);
@@ -490,7 +754,7 @@ if(lfUpdateToastsEnabled) {
 
         let updateToast = document.createElement("div");
         updateToast.innerHTML = `
-            <div id="lfUpdateToast">  
+            <div id="lfUpdateToast">
                 <div class="lfUpdateToastDiv">
                     <big>Hooray! LuminFilter was just updated to <b>v${GM_info.script.version}</b>!</big>
                 </div>
@@ -499,11 +763,11 @@ if(lfUpdateToastsEnabled) {
                     <span class="lfNiceButton" id="lfSeeWhatsNewButton">
                         <span class="lfEmoji">📋</span> See what's new!
                     </span>
-                    
+
                     <span class="lfNiceButton" id="lfCloseUpdateToastButton">
                         <span class="lfEmoji">❌</span> Close
                     </span>
-                    
+
                     <span class="lfNiceButton" id="lfNeverShowUpdateToastButton">
                         <span class="lfEmoji">🚫</span> Don't show again
                     </span>
@@ -563,6 +827,16 @@ htmlContent.innerHTML = `
     <div id="lfHeader">
         <span id="lfHeaderText">LuminFilter</span>
         <span id="lfToggleOptionsNode" class="lfNiceButton">Options</span><span id="lfDynamicRefreshNode" class="lfNiceButton hidden" title="Reload the page to apply your changes" onclick="javascript:location.reload();">🗘</span>
+        ${!lfUnfilteredPages.includes(currentPage) && lfOpenAllButtonEnabled ? `
+            <span class="lfNiceButton" id="lfOpenAllButton" title="Open all unfiltered results in new tabs">
+                <span class="lfEmoji">📂</span> Open all
+            </span>
+        ` : ''}
+        ${!lfUnfilteredPages.includes(currentPage) && lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled ? `
+            <span class="lfNiceButton" id="lfFilterAllButton" title="Individually blacklist and hide all unfiltered results">
+                <span class="lfEmoji">👁</span> Filter all
+            </span>
+        ` : ''}
     </div>
     <div id="lfMainDiv" class="lfMainBox hidden">
         <input class="lfRadioButton" id="lfTab1" type="radio" name="tabs" checked>
@@ -574,6 +848,9 @@ htmlContent.innerHTML = `
         <input class="lfRadioButton" id="lfTab3" type="radio" name="tabs">
         <label class="lfLabel" for="lfTab3"><span class="lfEmoji">👥</span> Uploaders</label>
 
+        <input class="lfRadioButton" id="lfTab5" type="radio" name="tabs">
+        <label class="lfLabel${lfConditionalEnabled ? '' : ' hidden'}" for="lfTab5"><span class="lfEmoji">🧩</span> Conditional</label>
+
         <input class="lfRadioButton" id="lfTab4" type="radio" name="tabs">
         <label class="lfLabel" for="lfTab4"><span class="lfEmoji">⚙️</span> Settings</label>
 
@@ -582,7 +859,7 @@ htmlContent.innerHTML = `
                 <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@happyfappy/someone</b>, or list several sites with commas: <b>@empornium,kufirc/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
             </div>
             <div class="lfFieldDiv">
-                <span class="lfImageButton lfListHeader" id="lfTagBlacklistHeader"><span class="lfEmoji">👎</span> Tag blacklist <small>(space-separated)</small></span><sup class="lfExplanationToggler" id="lfBLEToggler">[?]</sup><br />
+                <span class="lfImageButton lfListHeader" id="lfTagBlacklistHeader"><span class="lfEmoji">👎</span> Tag blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfBLEToggler">[?]</sup><br />
                 <div id="lfBLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
                         <b>TL;DR</b>: <i>If any of these tags exist, hide the torrent</i>
@@ -591,22 +868,22 @@ htmlContent.innerHTML = `
                     <div class="lfExplanationNode">
                         This is where you specify tags you don't want to see. Any torrent matching
                         any of these tags will be hidden unless overridden by any of the whitelist
-                        rules. The correct format for this field is the same used for tags on
-                        Empornium itself: Tags are separated by spaces, and uses a period between
-                        words within a tag. Character case does not matter. Blacklisted tags will be
+                        rules. Tags use a period between words within a tag, just like on Empornium
+                        itself. <b>Tags are separated by semicolons <span class="lfMonospace">;</span></b>
+                        Character case does not matter. Blacklisted tags will be
                         <span class="lfHiddenTag">highlighted</span> when viewing
                         hidden torrents.
                     </div>
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>scat piss.drinking jerk.off.instruction non.nude</pre>
+                        <pre>scat;piss.drinking;jerk.off.instruction;non.nude</pre>
                     </div>
                 </div>
-                <textarea class="lfTextArea" id="lfBlacklistTaglistArea" rows=10>${lfBlacklistTaglist}</textarea>
+                <textarea class="lfTextArea" id="lfBlacklistTaglistArea" rows=4>${lfBlacklistTaglist}</textarea>
             </div>
             <div class="lfFieldDiv${lfHardPassEnabled ? '' : ' hidden'}">
-                <span class="lfImageButton lfListHeader" id="lfTagHardPassHeader"><span class="lfEmoji">🚫</span> Hard Pass tag blacklist <small>(space-separated)</small></span><sup class="lfExplanationToggler" id="lfHPEToggler">[?]</sup><br />
+                <span class="lfImageButton lfListHeader" id="lfTagHardPassHeader"><span class="lfEmoji">🚫</span> Hard Pass tag blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfHPEToggler">[?]</sup><br />
                 <div id="lfHPE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
                         <b>TL;DR</b>: <i>If any of these tags exist, hide the torrent <b>no matter what</b></i>
@@ -615,22 +892,22 @@ htmlContent.innerHTML = `
                     <div class="lfExplanationNode">
                         This is where you specify tags you don't want to see at all. Any torrent
                         matching any of these tags will be hidden unless overridden by individual
-                        filtering (clicking the eye icon). The correct format for this field is the
-                        same used for tags on Empornium itself: Tags are separated by spaces, and
-                        uses a period between words within a tag. Character case does not matter.
+                        filtering (clicking the eye icon). Tags use a period between words within a
+                        tag, just like on Empornium itself. <b>Tags are separated by semicolons
+                        <span class="lfMonospace">;</span></b> Character case does not matter.
                         Hard Pass tags will be <span class="lfHardPassTag">highlighted</span> when viewing hidden torrents. The torrent will be removed completely from the results if the Black Hole
                         option is enabled.
                     </div>
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>virtual.reality scat puke blood enema</pre>
+                        <pre>virtual.reality;scat;puke;blood;enema</pre>
                     </div>
                 </div>
-                <textarea class="lfTextArea" id="lfHardPassTaglistArea" rows=10>${lfHardPassTaglist}</textarea>
+                <textarea class="lfTextArea" id="lfHardPassTaglistArea" rows=4>${lfHardPassTaglist}</textarea>
             </div>
             <div class="lfFieldDiv">
-                <span class="lfImageButton lfListHeader" id="lfTagWhitelistHeader"><span class="lfEmoji">👍</span> Tag whitelist <small>(space-separated)</small></span><sup class="lfExplanationToggler" id="lfWLEToggler">[?]</sup><br />
+                <span class="lfImageButton lfListHeader" id="lfTagWhitelistHeader"><span class="lfEmoji">👍</span> Tag whitelist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfWLEToggler">[?]</sup><br />
                 <div id="lfWLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
                         <b>TL;DR</b>: <i>If any of these tags exist, ignore all other rules and show the torrent</i>
@@ -639,19 +916,19 @@ htmlContent.innerHTML = `
                     <div class="lfExplanationNode">
                         This is where you specify tags you want to show regardless of all other
                         rules. In other words, no matter if the torrent matches on tags, title or
-                        uploader blacklists &mdash; if it contains any of these whitelisted tags, it
-                        will be shown regardless. The correct format for this field is the same used
-                        for tags on Empornium itself: Tags are separated by spaces, and uses a
-                        period between words within a tag. Character case does not matter.
+                        uploader blacklists — if it contains any of these whitelisted tags, it
+                        will be shown regardless. Tags use a period between words within a tag, just
+                        like on Empornium itself. <b>Tags are separated by semicolons
+                        <span class="lfMonospace">;</span></b> Character case does not matter.
                         Whitelisted tags will be <span class="lfWhitelistedTag">highlighted</span>.
                     </div>
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>sasha.grey huge.ass gianna.michaels femdom</pre>
+                        <pre>sasha.grey;huge.ass;gianna.michaels;femdom</pre>
                     </div>
                 </div>
-                <textarea class="lfTextArea" id="lfWhitelistTaglistArea" rows=10>${lfWhitelistTaglist}</textarea>
+                <textarea class="lfTextArea" id="lfWhitelistTaglistArea" rows=4>${lfWhitelistTaglist}</textarea>
             </div>
         </section>
 
@@ -671,8 +948,7 @@ htmlContent.innerHTML = `
                         useful for hiding untagged content with a recurring theme (for example
                         specific JAV series you don't care about, or re-encoded content).
                         Character case does not matter. <b>Title phrases are separated by
-                        semicolons <span class="lfMonospace">;</span> &mdash; not spaces, unlike
-                        tags or uploaders!</b>
+                        semicolons <span class="lfMonospace">;</span></b>
                     </div>
 
                     <div class="lfExplanationNode">
@@ -680,7 +956,7 @@ htmlContent.innerHTML = `
                         <pre>sdmm;hikr;princess peach;reencode</pre>
                     </div>
                 </div>
-                <textarea class="lfTextArea" id="lfBlacklistTitleListArea" rows=10>${lfBlacklistTitleList}</textarea>
+                <textarea class="lfTextArea" id="lfBlacklistTitleListArea" rows=4>${lfBlacklistTitleList}</textarea>
             </div>
             <div class="lfFieldDiv${lfHardPassEnabled ? '' : ' hidden'}">
                 <span class="lfImageButton lfListHeader" id="lfTitleHardPassHeader"><span class="lfEmoji">🚫</span> Hard Pass title blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfHPTEToggler">[?]</sup><br />
@@ -691,7 +967,7 @@ htmlContent.innerHTML = `
 
                     <div class="lfExplanationNode">
                         This is where you specify title phrases you don't want to see at all. Any torrent
-                        matching any of these phrases in the title will be hidden unless overridden by individual filtering (clicking the eye icon). Character case does not matter. <b>Title phrases are separated by semicolons <span class="lfMonospace">;</span> &mdash; not spaces like tags or uploaders!</b> Hard Pass title phrases will be <span class="lfHardPassTag">highlighted</span> when viewing hidden torrents. The torrent will be removed completely from the results if the Black Hole
+                        matching any of these phrases in the title will be hidden unless overridden by individual filtering (clicking the eye icon). Character case does not matter. <b>Title phrases are separated by semicolons <span class="lfMonospace">;</span></b> Hard Pass title phrases will be <span class="lfHardPassTag">highlighted</span> when viewing hidden torrents. The torrent will be removed completely from the results if the Black Hole
                         option is enabled.
                     </div>
 
@@ -700,7 +976,7 @@ htmlContent.innerHTML = `
                         <pre>sdmm;hikr;princess peach;reencode</pre>
                     </div>
                 </div>
-                <textarea class="lfTextArea" id="lfHardPassTitleListArea" rows=10>${lfHardPassTitleList}</textarea>
+                <textarea class="lfTextArea" id="lfHardPassTitleListArea" rows=4>${lfHardPassTitleList}</textarea>
             </div>
             <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfTitleWhitelistHeader"><span class="lfEmoji">👍</span> Title whitelist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfTitleWLEToggler">[?]</sup><br />
@@ -709,12 +985,12 @@ htmlContent.innerHTML = `
                         <b>TL;DR</b>: <i>If any of these phrases are in the title, ignore all other rules and show the torrent</i>
                     </div>
 
-                    <div class="lfExplanationNode">This is where you specify title phrases you want to show regardless of other rules. Character case does not matter. <b>Title phrases are separated by semicolons <span class="lfMonospace">;</span> &mdash; not spaces like tags or uploaders!</b>
+                    <div class="lfExplanationNode">This is where you specify title phrases you want to show regardless of other rules. Character case does not matter. <b>Title phrases are separated by semicolons <span class="lfMonospace">;</span></b>
                     </div>
 
                     <div class="lfExplanationNode">Example:<br /><pre>minipack;super mario;sdmm;moist</pre></div>
                 </div>
-                <textarea class="lfTextArea" id="lfWhitelistTitleListArea" rows=10>${lfWhitelistTitleList}</textarea>
+                <textarea class="lfTextArea" id="lfWhitelistTitleListArea" rows=4>${lfWhitelistTitleList}</textarea>
             </div>
         </section>
 
@@ -723,7 +999,7 @@ htmlContent.innerHTML = `
                 <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@happyfappy/someone</b>, or list several sites with commas: <b>@empornium,kufirc/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
             </div>
             <div class="lfFieldDiv">
-                <span class="lfImageButton lfListHeader" id="lfUploaderBlacklistHeader"><span class="lfEmoji">👎</span> Uploader blacklist <small>(space-separated)</small></span><sup class="lfExplanationToggler" id="lfUBLEToggler">[?]</sup><br />
+                <span class="lfImageButton lfListHeader" id="lfUploaderBlacklistHeader"><span class="lfEmoji">👎</span> Uploader blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfUBLEToggler">[?]</sup><br />
                 <div id="lfUBLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
                         <b>TL;DR</b>: <i>If this torrent is uploaded by any of these users, hide it</i>
@@ -733,20 +1009,21 @@ htmlContent.innerHTML = `
                         This is where you specify the names of uploaders you want to hide all
                         uploads from, unless overriden by a whitelist rule. Uploader names will be
                         <span class="lfHiddenUploader">highlighted</span> when viewing
-                        hidden torrents. Character case does not matter. Note that filtering based
-                        on usernames will not function on collage or user upload pages, as torrent 
-                        uploaders are not exposed on those pages.
+                        hidden torrents. Character case does not matter. <b>Uploader names are
+                        separated by semicolons <span class="lfMonospace">;</span></b> Note that
+                        filtering based on usernames will not function on collage or user upload
+                        pages, as torrent uploaders are not exposed on those pages.
                     </div>
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>SuperUploader2007 LowQualityUploadsIncorporated</pre>
+                        <pre>SuperUploader2007;LowQualityUploadsIncorporated</pre>
                     </div>
                 </div>
-                <textarea class="lfTextArea" id="lfBlacklistUploadersArea" rows=10>${lfBlacklistUploadersList}</textarea>
+                <textarea class="lfTextArea" id="lfBlacklistUploadersArea" rows=4>${lfBlacklistUploadersList}</textarea>
             </div>
             <div class="lfFieldDiv">
-                <span class="lfImageButton lfListHeader" id="lfUploaderWhitelistHeader"><span class="lfEmoji">👍</span> Uploader whitelist <small>(space-separated)</small></span><sup class="lfExplanationToggler" id="lfUWLEToggler">[?]</sup><br />
+                <span class="lfImageButton lfListHeader" id="lfUploaderWhitelistHeader"><span class="lfEmoji">👍</span> Uploader whitelist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfUWLEToggler">[?]</sup><br />
                 <div id="lfUWLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
                         <b>TL;DR</b>: <i>If this torrent is uploaded by any of these users, show it regardless of any other rules</i>
@@ -756,17 +1033,103 @@ htmlContent.innerHTML = `
                         This is where you specify the names of uploaders you want to show all
                         uploads from, regardless of any blacklist rules. Uploader names will be
                         <span class="lfWhitelistedUploader">highlighted</span>. Character
-                        case does not matter. Note that filtering based on usernames will not
-                        function on collage or user upload pages, as torrent uploaders are not 
-                        exposed on those pages.
+                        case does not matter. <b>Uploader names are separated by semicolons
+                        <span class="lfMonospace">;</span></b> Note that filtering based on
+                        usernames will not function on collage or user upload pages, as torrent
+                        uploaders are not exposed on those pages.
                     </div>
 
                     <div class="lfExplanationNode">
                         Example:<br />
-                        <pre>NobelPrizeWinningUploads ActuallyGreatUploader69 ceodoe</pre>
+                        <pre>NobelPrizeWinningUploads;ActuallyGreatUploader69;ceodoe</pre>
                     </div>
                 </div>
-                <textarea class="lfTextArea" id="lfWhitelistUploadersArea" rows=10>${lfWhitelistUploadersList}</textarea>
+                <textarea class="lfTextArea" id="lfWhitelistUploadersArea" rows=4>${lfWhitelistUploadersList}</textarea>
+            </div>
+        </section>
+
+        <section id="lfContent5">
+            <div class="lfFieldDiv">
+                <span class="lfImageButton lfListHeader" id="lfConditionalHeader"><span class="lfEmoji">🧩</span> Conditional rules <small>(one rule per line)</small></span><sup class="lfExplanationToggler" id="lfCREToggler">[?]</sup><br />
+                <div id="lfCRE" class="lfExplanationBox hidden">
+                    <div class="lfExplanationNode">
+                        <b>TL;DR</b>: <i>Combine tags, titles and uploaders with AND, OR and NOT</i>
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Regular blacklists can only say "hide anything with this tag". Conditional
+                        rules let you express exceptions and combinations instead — for
+                        example "hide everything from this uploader, <i>unless</i> it is tagged
+                        with something I like".
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Write <b>one rule per line</b>, in the form
+                        <span class="lfMonospace">ACTION: expression</span>. Blank lines and lines
+                        starting with <span class="lfMonospace">#</span> are ignored, so you can
+                        leave yourself notes.
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        <b>Actions</b><br />
+                        <span class="lfMonospace">HIDE:</span> hides the torrent. Your normal tag,
+                        title and uploader whitelists can still override it.<br />
+                        <span class="lfMonospace">PASS:</span> hides the torrent like a Hard Pass
+                        — nothing but individual filtering (the eye icon) overrides it.<br />
+                        <span class="lfMonospace">SHOW:</span> whitelists the torrent, overriding
+                        any blacklist.
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        <b>Selectors</b><br />
+                        <span class="lfMonospace">$TA{tag.name}</span> matches an exact tag<br />
+                        <span class="lfMonospace">$UP{username}</span> matches an exact uploader<br />
+                        <span class="lfMonospace">$TI{some phrase}</span> matches part of a title<br />
+                        <span class="lfMonospace">$SI{site}</span> matches the site you are on (${Object.keys(lfSiteProfiles).join(", ")})
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        <b>Operators</b><br />
+                        <span class="lfMonospace">AND</span>, <span class="lfMonospace">OR</span>,
+                        <span class="lfMonospace">NOT</span>, and parentheses
+                        <span class="lfMonospace">( )</span> for grouping.
+                        <span class="lfMonospace">NOT</span> binds tightest, then
+                        <span class="lfMonospace">AND</span>, then
+                        <span class="lfMonospace">OR</span> — so
+                        <span class="lfMonospace">a OR b AND c</span> means
+                        <span class="lfMonospace">a OR (b AND c)</span>. When in doubt, add
+                        parentheses.
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Character case never matters. Text inside
+                        <span class="lfMonospace">{ }</span> is taken completely literally, so a
+                        title phrase can safely contain the words AND, OR or NOT, and brackets or
+                        parentheses like <span class="lfMonospace">$TI{[Wicked] (2024)}</span>.
+                        If you need a literal brace inside the braces, write
+                        <span class="lfMonospace">\\{</span> or <span class="lfMonospace">\\}</span>.
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Examples:<br />
+                        <pre># Block an uploader, but keep the good stuff
+HIDE: $UP{wickedwitch} AND NOT ($TA{munchkin} OR $TA{yellow.brick.road} OR $TI{Emerald City})
+
+# Only hide this tag when it shows up in compilations
+HIDE: $TA{solo} AND $TI{compilation}
+
+# Always show anything with both of these tags
+SHOW: $TA{sasha.grey} AND $TA{femdom}
+
+# Never show these, no matter what
+PASS: $TA{scat} OR $TA{puke}
+
+# Whitelist an uploader on one site only
+SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
+                    </div>
+                </div>
+                <textarea class="lfTextArea" id="lfConditionalRulesArea" rows=8 spellcheck="false">${lfEscapeHTML(lfConditionalRulesText)}</textarea>
+                <div id="lfConditionalStatus" class="lfConditionalStatus"></div>
             </div>
         </section>
 
@@ -793,20 +1156,12 @@ htmlContent.innerHTML = `
                 <span class="lfExplanationSpan lfESOffset">(Click the eye icon next to the torrent name to blacklist/whitelist uploads</span><br />
                 <span class="lfExplanationSpan lfESOffset">individually, ignoring <b>all</b> other rules. These filters are automatically saved)</span><br /><br />
 
-                <input type="checkbox" id="lfCheckFilterAllButtonEnabled"${lfFilterAllButtonEnabled ? ' checked' : ''} />
-                <label for="lfCheckFilterAllButtonEnabled" class="lfSettingsCheckbox">
-                    <span class="lfEmoji">👁️</span> Enable "Filter all unfiltered results" button
-                </label><br />
-                <span class="lfExplanationSpan lfESOffset">(Requires individual upload filtering to be enabled to function)</span>
-                <br /><br />
-
-
                 <b>List management</b><br />
                 <input type="checkbox" id="lfCheckRightClickManagementEnabled"${lfRightClickManagementEnabled ? ' checked' : ''} />
                 <label for="lfCheckRightClickManagementEnabled" class="lfSettingsCheckbox">
                     <span class="lfEmoji">🖱️</span> Enable Right-Click Management (RCM)
                 </label>
-                                
+
                 <div id="lfRCMCustomizationDiv" ${lfRightClickManagementEnabled ? '' : 'class="hidden"'}>
                     <span class="lfESOffset">
                         <input type="checkbox" id="lfCheckRCMTagsEnabled"${lfRCMTagsEnabled ? ' checked' : ''} />
@@ -814,14 +1169,14 @@ htmlContent.innerHTML = `
                             <span class="lfEmoji">🏷️</span> Enable for tags
                         </label><br />
                     </span>
-                        
+
                     <span class="lfESOffset">
                         <input type="checkbox" id="lfCheckRCMTitlesEnabled"${lfRCMTitlesEnabled ? ' checked' : ''} />
                         <label for="lfCheckRCMTitlesEnabled" class="lfSettingsCheckbox">
                             <span class="lfEmoji">📚</span> Enable for titles
                         </label><br />
                     </span>
-                    
+
                     <span class="lfESOffset">
                         <input type="checkbox" id="lfCheckRCMUploadersEnabled"${lfRCMUploadersEnabled ? ' checked' : ''} />
                         <label for="lfCheckRCMUploadersEnabled" class="lfSettingsCheckbox">
@@ -831,7 +1186,7 @@ htmlContent.innerHTML = `
                 </div><br />
 
                 <span class="lfExplanationSpan">Right-click a tag/title/uploader in the torrent list to add/remove from your lists.</span><br /><br />
-                
+
                 <b>Torrent site status</b><br />
                 <input type="checkbox" id="lfCheckHideAnonUploads"${lfHideAnonUploadsEnabled ? ' checked' : ''} />
                 <label for="lfCheckHideAnonUploads" class="lfSettingsCheckbox">
@@ -904,6 +1259,13 @@ htmlContent.innerHTML = `
                     <span class="lfEmoji">⚫</span> Black Hole
                 </label><span class="lfExplanationSpan">(Remove results instead of hiding them behind the toggle)</span><br /><br />
                 <span class="lfExplanationSpan">Hard Pass enables extra blacklists that will make sure that torrents with the given tags or title phrases will be hidden no matter what. The only thing that can override Hard Pass is whitelisting a torrent through individual filtering when Black Hole is disabled. Enable the Black Hole option to remove results from the page entirely.</span><br /><br />
+
+                <b>Conditional rules</b><br />
+                <input type="checkbox" id="lfCheckConditionalEnabled"${lfConditionalEnabled ? ' checked' : ''} />
+                <label for="lfCheckConditionalEnabled" class="lfSettingsCheckbox">
+                    <span class="lfEmoji">🧩</span> Conditional rules
+                </label><span class="lfExplanationSpan">(Enable the "Conditional" tab)</span><br /><br />
+                <span class="lfExplanationSpan">Conditional rules let you combine tags, titles and uploaders with AND, OR and NOT — for example hiding an uploader except when the torrent carries a tag you like. See the "Conditional" tab for the full syntax.</span><br /><br />
             </section>
 
             <section id="lfSettingsContent2">
@@ -937,7 +1299,7 @@ htmlContent.innerHTML = `
                         <span class="lfEmoji">🖼️</span> Enable extended Unicode icons ("emoji")
                     </label>
                     <span class="lfExplanationSpan">(Disable if you see garbled characters)</span><br />
-                    
+
                     <input type="checkbox" id="lfCheckUpdateToasts"${lfUpdateToastsEnabled ? ' checked' : ''} />
                     <label for="lfCheckUpdateToasts" class="lfSettingsCheckbox">
                         <span class="lfEmoji">❗</span> Notify me when LuminFilter is updated
@@ -951,15 +1313,26 @@ htmlContent.innerHTML = `
 
                     <input type="checkbox" id="lfCheckOpenAllButton"${lfOpenAllButtonEnabled ? ' checked' : ''} />
                     <label for="lfCheckOpenAllButton" class="lfSettingsCheckbox">
-                        <span class="lfEmoji">📂</span> Enable the "Open all unfiltered results" button
+                        <span class="lfEmoji">📂</span> Show "Open all" button in the header
                     </label><br />
-                    <span class="lfExplanationSpan lfESOffset">(Appears under the LuminFilter options area. If your browser tells you it blocked Emp</span><br />
-                    <span class="lfExplanationSpan lfESOffset">from opening popups, click the Preferences button and allow popups for Emp)</span><br />
-                    
+                    <span class="lfExplanationSpan lfESOffset">(Opens all unfiltered results in background tabs using your userscript manager.)</span><br /><br />
+
+                    <input type="checkbox" id="lfCheckFilterAllButtonEnabled"${lfFilterAllButtonEnabled ? ' checked' : ''} />
+                    <label for="lfCheckFilterAllButtonEnabled" class="lfSettingsCheckbox">
+                        <span class="lfEmoji">👁️</span> Show "Filter all" button in the header
+                    </label><br />
+                    <span class="lfExplanationSpan lfESOffset">(Blacklists all unfiltered results. Requires individual upload filtering.)</span><br /><br />
+
                     <input type="checkbox" id="lfCheckOpenAllGoNext"${lfOpenAllGoNextEnabled ? ' checked' : ''} />
                     <label for="lfCheckOpenAllGoNext" class="lfSettingsCheckbox">
                         <span class="lfEmoji">➡️</span> Automatically go to next results page after clicking "Open all" button
+                    </label><br />
+
+                    <input type="checkbox" id="lfCheckAllHiddenGoNext"${lfAllHiddenGoNextEnabled ? ' checked' : ''} />
+                    <label for="lfCheckAllHiddenGoNext" class="lfSettingsCheckbox">
+                        If All Rows Are Hidden, Next Page
                     </label><br /><br />
+                    <span class="lfExplanationSpan lfESOffset">(Waits 2 seconds, then clicks Next. Stops at the last page.)</span><br />
 
                     <br />
 
@@ -971,15 +1344,15 @@ htmlContent.innerHTML = `
                     <input type="text" class="lfInput" value="${lfTextAreaFont}" id="lfTextAreaFont" /> <span class="lfExplanationSpan">(Font for black/whitelists textareas)</span>
                     <br /><br />
 
-                    
+
                     Highlight color for blacklisted elements: <br />
                     <input type="text" class="lfInput" value="${lfBlacklistColor}" id="lfBlacklistColor" /> <span class="lfExplanationSpan">(You can use any <a class="lfLink" href="https://developer.mozilla.org/en-US/docs/Web/CSS/color_value" target="_blank"><b><u>CSS color notation</u></b></a> here)</span>
                     <br /><br />
-                    
+
                     Highlight color for Hard Pass tags: <br />
                     <input type="text" class="lfInput" value="${lfHardPassColor}" id="lfHardPassColor" />
                     <br /><br />
-                    
+
                     Highlight color for whitelisted elements: <br />
                     <input type="text" class="lfInput" value="${lfWhitelistColor}" id="lfWhitelistColor" />
                     <br /><br />
@@ -1003,7 +1376,7 @@ htmlContent.innerHTML = `
                     <div id="lfCustomThemeDiv" ${lfSelectedTheme=="lfThemeCustom" ? '' : 'class="hidden"'}>
                         <p>
                             You can use any <a class="lfLink" href="https://developer.mozilla.org/en-US/docs/Web/CSS/color_value" target="_blank">CSS color notation</a> here.<br />
-                            Examples: <span class="lfMonospace">#ffffff &mdash; rgb(0,0,255) &mdash; aquamarine</span>
+                            Examples: <span class="lfMonospace">#ffffff — rgb(0,0,255) — aquamarine</span>
                         </p>
                         <p>
                             Background color:<br />
@@ -1041,13 +1414,13 @@ htmlContent.innerHTML = `
                         <span class="lfEmoji">🔢</span> Renumber torrents on "Top X" pages
                     </label>
                     <span class="lfExplanationSpan">(Fixes torrent numbering after filtering)</span><br />
-                    
+
                     <input type="checkbox" id="lfCheckHideCategoryIcons"${lfHideCategoryIconsEnabled ? ' checked' : ''} />
                     <label for="lfCheckHideCategoryIcons" class="lfSettingsCheckbox">
                         <span class="lfEmoji">🟪</span> Hide category icons
                     </label>
                     <span class="lfExplanationSpan">(Hides category icons/links in torrent lists)</span><br />
-                    
+
                     <input type="checkbox" id="lfCheckArrowNavigation"${lfArrowNavigationEnabled ? ' checked' : ''} />
                     <label for="lfCheckArrowNavigation" class="lfSettingsCheckbox">
                         <span class="lfEmoji">⌨️</span> Navigate paginated torrent lists with keyboard arrow keys
@@ -1088,7 +1461,7 @@ htmlContent.innerHTML = `
                     </div><br />
                     <span class="lfNiceButton" id="lfExportButton"><span class="lfEmoji">⤴️</span> Export LuminFilter data</span> 
                     <span class="lfNiceButton" id="lfEraseDataButton"><span class="lfEmoji">🔄</span> Reset LuminFilter data</span><br /><br />
-                    
+
                     <span class="lfExplanationSpan"><b>IMPORTANT: Data overwritten or reset by the functions above is <i>not</i> recoverable!</b></span>
                 </p>
             </section>
@@ -1096,7 +1469,7 @@ htmlContent.innerHTML = `
             <section id="lfSettingsContent4">
                 <h3 class="lfH3">About</h3>
                 <p>
-                    Copyright &copy; 2015-2026 ceodoe, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">LuminFilter</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by <a class="lfLink" href="/user.php?id=508194">ceodoe</a> of Empornium. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
+                    Copyright &copy; 2015-2026 ceodoe, xrt141, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">LuminFilter</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by <a class="lfLink" href="/user.php?id=508194">ceodoe</a> of Empornium. The conditional rules engine and several interface improvements are by xrt141. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
                 </p>
 
                 <h3 class="lfH3">Statistics</h3>
@@ -1138,7 +1511,7 @@ htmlContent.innerHTML = `
 
         <div class="lfSettingsControlDiv">
             <span id="lfSaveButton" class="lfNiceButton"><span class="lfEmoji">💾</span> Save</span>
-            <span id="lfReloadButton" class="lfNiceButton"><span class="lfEmoji">🔃</span> Reload page and apply changes</span> 
+            <span id="lfReloadButton" class="lfNiceButton"><span class="lfEmoji">🔃</span> Reload page and apply changes</span>
             <span id="lfCloseOptionsButton" class="lfNiceButton"><span class="lfEmoji">❌</span> Close options</span>
         </div>
 
@@ -1147,29 +1520,6 @@ htmlContent.innerHTML = `
         </div>
     </div>
 </div>
-
-${!lfUnfilteredPages.includes(currentPage) && (lfOpenAllButtonEnabled || (lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled)) ? `
-    <div class="lfTopAiryDiv lfBtmAiryDiv lfCenterDiv">
-    ${lfOpenAllButtonEnabled ? `
-        <div style="display: inline;">
-            <span class="lfNiceButton" id="lfOpenAllButton">
-                <span class="lfEmoji">📂</span>
-                Open all unfiltered results
-            </span>
-        </div>
-    ` : ''}
-
-    ${lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled ? `
-        <div style="display: inline;">
-            <span class="lfNiceButton" id="lfFilterAllButton">
-                <span class="lfEmoji">👁</span>
-                Filter all unfiltered results
-            </span>
-        </div>
-    ` : ''}
-    </div>
-` : ''}
-
 
 <div id="lfRCMBox" class="hidden">
     <div id="lfRCMClose">${lfEmojiEnabled ? '❌' : '<span class="lfHiddenTag"><b><big>X</big></b></span>'}</div>
@@ -1206,8 +1556,8 @@ if(currentPage == "Notification filters") {
         let newElement = document.createElement("p");
         newElement.classList.add("min_padding");
         newElement.style.marginTop = "10px";
-        
-        if(textareas[i].name == "tags") {    
+
+        if(textareas[i].name == "tags") {
             newElement.innerHTML = `
                 <span class="lfNiceButton" id="lfImportListButton${i}">
                     <span class="lfEmoji">⤵️</span>
@@ -1227,15 +1577,18 @@ if(currentPage == "Notification filters") {
             let coupledTextarea = this.parentNode.parentNode.querySelector("textarea.long");
 
             if(coupledTextarea.name == "tags") {
-                coupledTextarea.innerHTML = document.getElementById("lfWhitelistTaglistArea").innerHTML;
+                // The site's own tag fields are space-separated, so convert
+                coupledTextarea.innerHTML = lfScopeFilter(lfParseList(document.getElementById("lfWhitelistTaglistArea").value)).join(" ");
             } else if(coupledTextarea.name == "nottags") {
+                let exportTags = new Array(0);
+
                 if(lfHardPassEnabled) {
-                    coupledTextarea.innerHTML = document.getElementById("lfHardPassTaglistArea").innerHTML + " ";
-                } else {
-                    coupledTextarea.innerHTML = "";
+                    exportTags = exportTags.concat(lfScopeFilter(lfParseList(document.getElementById("lfHardPassTaglistArea").value)));
                 }
 
-                coupledTextarea.innerHTML = coupledTextarea.innerHTML + document.getElementById("lfBlacklistTaglistArea").innerHTML;
+                exportTags = exportTags.concat(lfScopeFilter(lfParseList(document.getElementById("lfBlacklistTaglistArea").value)));
+
+                coupledTextarea.innerHTML = [...new Set(exportTags)].join(" ");
             }
         };
 
@@ -1257,11 +1610,11 @@ if(torrents) {
     if(!lfUnfilteredPages.includes(currentPage)) { // Skip filtering where it doesn't apply
         for(let i = 0; i < torrents.length; i++) {
             let tagElement = torrents[i].querySelector("td > div.tags");
-    
+
             if(!tagElement) {
                 continue; // skip to next iteration if we can't get taglist
             }
-    
+
             let russianRouletteBulletInChamber = false;
             if(lfRussianRouletteEnabled) {
                 let randNum = Math.floor(Math.random() * 6) + 1; // 1/6 chance to fire
@@ -1269,7 +1622,7 @@ if(torrents) {
                     russianRouletteBulletInChamber = true;
                 }
             }
-    
+
             let uploaderElement, titleElement;
 
             if(currentPage == "Top 10") {
@@ -1277,24 +1630,44 @@ if(torrents) {
             } else {
                 uploaderElement = torrents[i].querySelector("td.user > a");
             }
-    
+
             if(currentPage == "Collage") {
                 titleElement = torrents[i].querySelector("td > strong > a");
             } else {
                 titleElement = torrents[i].querySelector("td > a");
             }
-    
+
             let countMe = 1;
             let currentHidden = false;
             let currentWhitelisted = false;
             let currentBypassWhitelist = false;
             let currentForceHide = false;
             let currentForceShow = false;
-    
+
+            // Snapshot the pristine tags/title/uploader for the conditional rule
+            // engine. This has to happen before the title checks below, which
+            // append "(matched phrase)" markup to the title element.
+            let lfRuleContext = null;
+            if(lfConditionalEnabled && lfCompiledConditionals.rules.length > 0) {
+                let contextTags = new Set();
+                let contextTagNodes = tagElement.querySelectorAll("a");
+
+                for(let t = 0; t < contextTagNodes.length; t++) {
+                    contextTags.add(contextTagNodes[t].innerHTML.trim().toLowerCase());
+                }
+
+                lfRuleContext = {
+                    tags: contextTags,
+                    title: titleElement ? titleElement.innerHTML.trim().toLowerCase() : "",
+                    uploader: uploaderElement ? uploaderElement.innerHTML.trim().toLowerCase() : "",
+                    site: lfSite.id
+                };
+            }
+
             // Check if we are adding the hide button
             if(lfIndividualUploadHidingEnabled) {
                 let torrentIconContainer = torrents[i].querySelector("td > span.torrent_icon_container");
-    
+
                 if(torrentIconContainer) {
                     let lfToggleHideElement = document.createElement("span");
                     lfToggleHideElement.className = "icon";
@@ -1307,10 +1680,10 @@ if(torrents) {
                         </div>
                     </div>
                     `;
-        
+
                     lfToggleHideElement.title = "Filter this torrent with LuminFilter";
                     lfToggleHideElement.classList.add("lfToggleHideButton");
-        
+
                     let actualIcon = lfToggleHideElement.querySelector("div > div > i");
                     let torrentID = titleElement.href.match(/([0-9]+)/)[0];
                     actualIcon.torrentID = torrentID;
@@ -1320,24 +1693,24 @@ if(torrents) {
                         // Refresh lists, they might have been changed in other tabs
                         lfIndividualUploadHidingBlacklist = GM_getValue("lfIndividualUploadHidingBlacklist", new Array(0));
                         lfIndividualUploadHidingWhitelist = GM_getValue("lfIndividualUploadHidingWhitelist", new Array(0));
-        
+
                         if(torrentParent) {
                             if(!torrentParent.getAttribute("isLFHidden")) {
                                 torrentParent.setAttribute("isLFHidden", "0");
                             }
-            
+
                             if(torrentParent.getAttribute("isLFHidden") === "1") {
                                 // Blacklisted, move to whitelist and unhide
                                 let currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
                                 if(currindex > -1) {
                                     lfIndividualUploadHidingBlacklist.splice(currindex, 1);
                                 }
-            
+
                                 currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
                                 if(currindex == -1) { // Only add if not already whitelisted to avoid duplicates
                                     lfIndividualUploadHidingWhitelist.push(this.torrentID);
                                 }
-            
+
                                 if(currentPage == "Top 10") {
                                     let count = 0;
                                     let torrentLinks = document.querySelectorAll("tr.torrent > td > a");
@@ -1364,22 +1737,22 @@ if(torrents) {
                                     torrentParent.classList.toggle("hidden");
                                     torrentParent.setAttribute("isLFHidden", "0");
                                     torrentParent.style.backgroundColor = null;
-                                    
+
                                     this.classList.add("lfIndividuallyWhitelisted");
                                     this.classList.remove("lfIndividuallyBlacklisted");
                                     this.classList.remove("lfIndividuallyUntouched");
 
                                     adjustHiddenHeaderCount(-1);
                                 }
-            
-                                
+
+
                             } else if(torrentParent.getAttribute("isLFHidden") == "0") {
                                 // Not hidden or is whitelisted, move to blacklist and hide
                                 let currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
                                 if(currindex > -1) {
                                     lfIndividualUploadHidingWhitelist.splice(currindex, 1);
                                 }
-            
+
                                 currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
                                 if(currindex == -1) { // Only add if not already blacklisted to avoid duplicates
                                     lfIndividualUploadHidingBlacklist.push(this.torrentID);
@@ -1419,7 +1792,7 @@ if(torrents) {
                                     adjustHiddenHeaderCount(1);
                                 }
                             }
-            
+
                             //Save lists immediately after manipulating them
                             GM_setValue("lfIndividualUploadHidingBlacklist", lfIndividualUploadHidingBlacklist);
                             GM_setValue("lfIndividualUploadHidingWhitelist", lfIndividualUploadHidingWhitelist);
@@ -1439,12 +1812,12 @@ if(torrents) {
                         // Refresh lists, they might have been changed in other tabs
                         lfIndividualUploadHidingBlacklist = GM_getValue("lfIndividualUploadHidingBlacklist", new Array(0));
                         lfIndividualUploadHidingWhitelist = GM_getValue("lfIndividualUploadHidingWhitelist", new Array(0));
-        
+
                         if(torrentParent) {
                             // Remove from both lists
                             let wasRemovedFromWL = false;
                             let wasRemovedFromBL = false;
-                            
+
                             let currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
                             if(currindex > -1) {
                                 lfIndividualUploadHidingWhitelist.splice(currindex, 1);
@@ -1456,7 +1829,7 @@ if(torrents) {
                                 lfIndividualUploadHidingBlacklist.splice(currindex, 1);
                                 wasRemovedFromBL = true;
                             }
-        
+
                             if(wasRemovedFromWL || wasRemovedFromBL) {
                                 if(currentPage == "Top 10") {
                                     let count = 0;
@@ -1481,7 +1854,7 @@ if(torrents) {
                                             count--;
                                         }
                                     }
-                                    
+
                                     if(wasRemovedFromBL) {
                                         adjustHiddenHeaderCount(count);
                                     }
@@ -1496,7 +1869,7 @@ if(torrents) {
                                     this.classList.remove("lfIndividuallyWhitelisted");
                                     this.classList.remove("lfIndividuallyBlacklisted");
                                     this.classList.add("lfIndividuallyUntouched");
-                                    
+
                                     if(wasRemovedFromBL) {
                                         adjustHiddenHeaderCount(-1);
                                     }
@@ -1524,45 +1897,45 @@ if(torrents) {
                             currentForceHide = true;
                         }
                     }
-        
+
                     let currentWLIndex = lfIndividualUploadHidingWhitelist.indexOf(torrentID);
                     if(currentWLIndex > -1) {
                         actualIcon.classList.add("lfIndividuallyWhitelisted");
                         currentWhitelisted = true;
                         currentForceShow = true;
                     }
-        
+
                     if(currentForceHide == false && currentForceShow == false) {
                         // Torrent not acted upon
                         actualIcon.classList.add("lfIndividuallyUntouched");
                     }
                 }
             }
- 
+
             if(lfObliviousModeEnabled == true) {
                 tagElement.classList.add("hidden");
             }
-    
+
             // Check if filtered via options
             if(lfHideReportedEnabled) {
                 if(titleElement.querySelector("span.reported") !== null) {
                     currentHidden = true;
                 }
             }
-    
+
             if(lfHideWarnedEnabled) {
                 if(torrents[i].classList.contains("redbar")) {
                     currentHidden = true;
                 }
             }
-    
+
             if(lfHideUnseededEnabled) {
                 let selector = "td:nth-child(8)";
-    
+
                 if(currentPage == "Collage") {
                     selector = "td:nth-child(7)";
                 }
-                
+
                 let seeders = torrents[i].querySelector(selector);
                 if(seeders.classList.contains("r00")) {
                     currentHidden = true;
@@ -1597,16 +1970,16 @@ if(torrents) {
                 let bmElement = torrents[i].querySelector(lfSite.layout.bookmarked);
                 if(bmElement) {
                     currentHidden = true;
-                    
+
                     if(lfBypassWhitelistsEnabled) {
                         currentBypassWhitelist = true;
                     }
                 }
             }
-    
+
             // Check uploaders
             // No uploaders on collage and user uploaded pages
-            if(currentPage !== "Collage" && currentPage !== "Uploaded") { 
+            if(currentPage !== "Collage" && currentPage !== "Uploaded") {
                 if(!uploaderElement) { // If it is null, it's an anon upload
                     if(lfHideAnonUploadsEnabled) {
                         let anonName = torrents[i].querySelector("td > span.anon_name");
@@ -1619,19 +1992,19 @@ if(torrents) {
                     }
                 } else { // Not an anon upload
                     let uploader = uploaderElement.innerHTML.trim().toLowerCase();
-    
+
                     let hiddenByUploader = false;
                     for(let l = 0; l < lfBlacklistUploaders.length; l++) {
                         if(uploader == lfBlacklistUploaders[l].trim().toLowerCase()) {
                             hiddenByUploader = true;
                             currentHidden = true;
-                            if(russianRouletteBulletInChamber == false) { 
-                                uploaderElement.classList.add("lfHiddenUploader"); 
+                            if(russianRouletteBulletInChamber == false) {
+                                uploaderElement.classList.add("lfHiddenUploader");
                             }
                             break;
                         }
                     }
-    
+
                     // If hiddenByUploader is still false, that means no blacklisted uploader was found, check whitelist
                     // If hiddenByUploader is true, blacklisted uploader was found, and since usernames are unique, skip check
                     if(hiddenByUploader == false) {
@@ -1647,17 +2020,17 @@ if(torrents) {
                     }
                 }
             }
-    
+
             // Scan title for lfBlacklistTitlePhrases
             // ...For every blacklisted phrase:
             for(let tblCount = 0; tblCount < lfBlacklistTitlePhrases.length; tblCount++) {
                 let currentTBLPhrase = lfBlacklistTitlePhrases[tblCount].trim().toLowerCase();
                 let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
-    
+
                 if(currentTBLPhrase != "") {
                     if(torrentTitle.includes(currentTBLPhrase)) {
                         currentHidden = true;
-                        if(russianRouletteBulletInChamber == false) { 
+                        if(russianRouletteBulletInChamber == false) {
                             titleElement.innerHTML = titleElement.innerHTML + ` <color class="lfHiddenTitle">(${currentTBLPhrase})</color>`;
                         }
                     }
@@ -1669,12 +2042,12 @@ if(torrents) {
                 for(let tblCount = 0; tblCount < lfHardPassTitlePhrases.length; tblCount++) {
                     let currentTBLPhrase = lfHardPassTitlePhrases[tblCount].trim().toLowerCase();
                     let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
-        
+
                     if(currentTBLPhrase != "") {
                         if(torrentTitle.includes(currentTBLPhrase)) {
                             currentHidden = true;
                             currentForceHide = true;
-                            if(russianRouletteBulletInChamber == false) { 
+                            if(russianRouletteBulletInChamber == false) {
                                 titleElement.innerHTML = titleElement.innerHTML + ` <color class="lfHardPassTitle">(${currentTBLPhrase})</color>`;
 
                                 if(lfRemoveHardPassResults) {
@@ -1686,14 +2059,14 @@ if(torrents) {
                     }
                 }
             }
-    
+
             // Scan title for lfWhitelistTitlePhrases
             // ...For every whitelisted phrase:
             if(currentBypassWhitelist == false) {
                 for(let tblCount = 0; tblCount < lfWhitelistTitlePhrases.length; tblCount++) {
                     let currentTWLPhrase = lfWhitelistTitlePhrases[tblCount].trim().toLowerCase();
                     let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
-    
+
                     if(currentTWLPhrase != "") {
                         if(torrentTitle.includes(currentTWLPhrase)) {
                             currentWhitelisted = true;
@@ -1702,7 +2075,7 @@ if(torrents) {
                     }
                 }
             }
-    
+
             // For every tag in the current torrent
             let tagList = tagElement.querySelectorAll("a");
             if(tagList) {
@@ -1711,9 +2084,9 @@ if(torrents) {
                         if(lfHardPassTags.includes(tagList[k].innerHTML) === true) {
                             currentHidden = true;
                             currentForceHide = true;
-                            if(russianRouletteBulletInChamber == false) { 
+                            if(russianRouletteBulletInChamber == false) {
                                 tagList[k].classList.add("lfHardPassTag");
-        
+
                                 if(lfRemoveHardPassResults) {
                                     torrents[i].classList.add("lfHardPassRemove");
                                     countMe = 0;
@@ -1721,14 +2094,14 @@ if(torrents) {
                             }
                         }
                     }
-        
+
                     if(lfBlacklistTags.includes(tagList[k].innerHTML) === true) {
                         currentHidden = true;
-                        if(russianRouletteBulletInChamber == false) { 
-                            tagList[k].classList.add("lfHiddenTag"); 
+                        if(russianRouletteBulletInChamber == false) {
+                            tagList[k].classList.add("lfHiddenTag");
                         }
                     }
-        
+
                     if(currentBypassWhitelist == false) {
                         if(lfWhitelistTags.includes(tagList[k].innerHTML) === true) {
                             currentWhitelisted = true;
@@ -1737,7 +2110,34 @@ if(torrents) {
                     }
                 }
             }
-    
+
+            // Conditional rules
+            // TODO: surface "why was this hidden" — we know rule.line/rule.source
+            // here, so a tooltip or data attribute on the row would be cheap.
+            if(lfRuleContext !== null) {
+                for(let r = 0; r < lfCompiledConditionals.rules.length; r++) {
+                    let rule = lfCompiledConditionals.rules[r];
+
+                    if(!lfEvaluateRuleNode(rule.ast, lfRuleContext)) { continue; }
+
+                    if(rule.action === "SHOW") {
+                        currentWhitelisted = true;
+                    } else if(rule.action === "PASS") {
+                        // Hard Pass tier: only individual filtering can override
+                        currentHidden = true;
+                        currentForceHide = true;
+
+                        if(russianRouletteBulletInChamber == false && lfRemoveHardPassResults) {
+                            torrents[i].classList.add("lfHardPassRemove");
+                            countMe = 0;
+                        }
+                    } else {
+                        // HIDE: blacklist tier, whitelists can still win
+                        currentHidden = true;
+                    }
+                }
+            }
+
             // If forcing through individual filtering, ignore results
             if(currentForceShow) {
                 currentHidden = false;
@@ -1746,7 +2146,7 @@ if(torrents) {
                 currentHidden = true;
                 currentWhitelisted = false;
             }
-    
+
             if(currentWhitelisted === true) {
                 torrents[i].classList.remove("hidden");
                 torrents[i].setAttribute("isLFHidden", "0");
@@ -1755,7 +2155,7 @@ if(torrents) {
                     torrents[i].style.backgroundColor = themes[lfSelectedTheme].hiddenBackgroundColor;
                     torrents[i].classList.add("hidden");
                     torrents[i].setAttribute("isLFHidden", "1");
-    
+
                     count += countMe;
                 }
             }
@@ -1790,15 +2190,15 @@ if(torrents) {
 
             if(uploaderElement) {
                 let uploader = uploaderElement.innerHTML.trim().toLowerCase();
-    
+
                 for(let l = 0; l < lfBlacklistUploaders.length; l++) {
                     if(uploader == lfBlacklistUploaders[l].trim().toLowerCase()) {
-                        uploaderElement.classList.add("lfHiddenUploader"); 
-                        uploaderElement2.classList.add("lfHiddenUploader"); 
+                        uploaderElement.classList.add("lfHiddenUploader");
+                        uploaderElement2.classList.add("lfHiddenUploader");
                         break;
                     }
                 }
-    
+
                 for(let m = 0; m < lfWhitelistUploaders.length; m++) {
                     if(uploader == lfWhitelistUploaders[m].trim().toLowerCase()) {
                         uploaderElement.classList.add("lfWhitelistedUploader");
@@ -1832,7 +2232,7 @@ if(torrents) {
                 }
             }
         }
-        
+
         // Scan title for lfHardPassTitlePhrases
         for(let tblCount = 0; tblCount < lfHardPassTitlePhrases.length; tblCount++) {
             let currentTBLPhrase = lfHardPassTitlePhrases[tblCount].trim().toLowerCase();
@@ -1877,14 +2277,14 @@ if(torrents) {
                     </div>
                 </div>
                 `;
-    
+
                 lfToggleHideElement.title = "Filter this torrent with LuminFilter";
                 lfToggleHideElement.classList.add("lfToggleHideButton");
-    
+
                 let actualIcon = lfToggleHideElement.querySelector("div > div > i");
                 let torrentID = window.location.href.match(/id=([0-9]+)/)[1];
                 actualIcon.torrentID = torrentID;
-                actualIcon.onclick = function() {   
+                actualIcon.onclick = function() {
                     // Refresh lists, they might have been changed in other tabs
                     lfIndividualUploadHidingBlacklist = GM_getValue("lfIndividualUploadHidingBlacklist", new Array(0));
                     lfIndividualUploadHidingWhitelist = GM_getValue("lfIndividualUploadHidingWhitelist", new Array(0));
@@ -1895,12 +2295,12 @@ if(torrents) {
                         if(currindex > -1) {
                             lfIndividualUploadHidingBlacklist.splice(currindex, 1);
                         }
-    
+
                         currindex = lfIndividualUploadHidingWhitelist.indexOf(this.torrentID);
                         if(currindex == -1) { // Only add if not already whitelisted to avoid duplicates
                             lfIndividualUploadHidingWhitelist.push(this.torrentID);
                         }
-    
+
                         this.classList.add("lfIndividuallyWhitelisted");
                         this.classList.remove("lfIndividuallyBlacklisted");
                         this.classList.remove("lfIndividuallyUntouched");
@@ -1910,17 +2310,17 @@ if(torrents) {
                         if(currindex > -1) {
                             lfIndividualUploadHidingWhitelist.splice(currindex, 1);
                         }
-    
+
                         currindex = lfIndividualUploadHidingBlacklist.indexOf(this.torrentID);
                         if(currindex == -1) { // Only add if not already blacklisted to avoid duplicates
                             lfIndividualUploadHidingBlacklist.push(this.torrentID);
                         }
-    
+
                         this.classList.remove("lfIndividuallyWhitelisted");
                         this.classList.remove("lfIndividuallyUntouched");
                         this.classList.add("lfIndividuallyBlacklisted");
                     }
-    
+
                     //Save lists immediately after manipulating them
                     GM_setValue("lfIndividualUploadHidingBlacklist", lfIndividualUploadHidingBlacklist);
                     GM_setValue("lfIndividualUploadHidingWhitelist", lfIndividualUploadHidingWhitelist);
@@ -1961,7 +2361,7 @@ if(torrents) {
                 if(currentBLIndex > -1) {
                     actualIcon.classList.add("lfIndividuallyBlacklisted");
                 }
-    
+
                 let currentWLIndex = lfIndividualUploadHidingWhitelist.indexOf(torrentID);
                 if(currentWLIndex > -1) {
                     actualIcon.classList.add("lfIndividuallyWhitelisted");
@@ -1995,7 +2395,7 @@ if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
             let currTaglist = document.querySelector("#torrent_tags");
             let observerOptions = {subtree: true, childList: true};
             let mObserver = new MutationObserver(function() {
-                let tagList = document.querySelectorAll("ul#torrent_tags_list > li > a");        
+                let tagList = document.querySelectorAll("ul#torrent_tags_list > li > a");
                 if(tagList !== null && tagList !== undefined) {
                     for(let i = 0; i < tagList.length; i++) {
                         tagList[i].classList.add("lfTagElement");
@@ -2036,11 +2436,11 @@ if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
                 let tagList = torrents[i].querySelectorAll("td > div.tags > a");
                 if(tagList !== null && tagList !== undefined) {
                     for(let j = 0; j < tagList.length; j++) {
-                        tagList[j].classList.add("lfTagElement");    
+                        tagList[j].classList.add("lfTagElement");
                     }
                 }
             }
-    
+
             // Titles
             if(lfRCMTitlesEnabled) {
                 let titleElement;
@@ -2055,12 +2455,12 @@ if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
             // Uploaders
             if(lfRCMUploadersEnabled) {
                 let uploaderElement = torrents[i].querySelector("td.user > a");
-    
+
                 if(currentPage == "Top 10") {
                     uploaderElement = torrents[i].querySelector("td:nth-child(10) > a");
                 }
-        
-                if(currentPage !== "Collage" && currentPage !== "Uploaded" && uploaderElement !== null) { 
+
+                if(currentPage !== "Collage" && currentPage !== "Uploaded" && uploaderElement !== null) {
                     uploaderElement.classList.add("lfUploaderElement");
                 }
             }
@@ -2072,7 +2472,7 @@ if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
 if(currentPage == "Torrent details") {
     let currTaglist = document.querySelector("#torrent_tags");
     let observerOptions = {subtree: true, childList: true};
-    let mObserver = new MutationObserver(function() { recolorTags(); });  
+    let mObserver = new MutationObserver(function() { recolorTags(); });
     mObserver.observe(currTaglist, observerOptions);
 }
 
@@ -2080,14 +2480,14 @@ function recolorTags() {
     let tagList;
     if(currentPage == "Torrent details") {
         tagList = document.querySelectorAll("ul#torrent_tags_list > li > a");
-    } else if(currentPage == "My uploaded") {    
+    } else if(currentPage == "My uploaded") {
         tagList = document.querySelectorAll("div.tags > a");
     } else if(lfUnfilteredPages.includes(currentPage)) {
         return;
     } else {
         tagList = document.querySelectorAll("a.lfTagElement");
     }
-    
+
     if(tagList !== null && tagList !== undefined) {
         for(let i = 0; i < tagList.length; i++) {
             if(lfBlacklistTags.includes(tagList[i].innerHTML.trim())) {
@@ -2198,8 +2598,8 @@ document.getElementById("lfToggleOptionsNode").onclick = function() {
     document.getElementById("lfMainDiv").classList.toggle("hidden");
 };
 
-document.getElementById("lfCloseOptionsButton").onclick = function() { 
-    document.getElementById("lfMainDiv").classList.add("hidden"); 
+document.getElementById("lfCloseOptionsButton").onclick = function() {
+    document.getElementById("lfMainDiv").classList.add("hidden");
     document.getElementById("lfOuter").scrollIntoView();
 };
 
@@ -2234,36 +2634,40 @@ document.getElementById("lfThemeDropdown").onchange = function() {
 
 if(lfOpenAllButtonEnabled && !lfUnfilteredPages.includes(currentPage)) {
     document.getElementById("lfOpenAllButton").onclick = function() {
-        let torrentLinks;
+        let rows = document.querySelectorAll(currentPage == "Requests" ? "#request_table tr" : "tr.torrent");
+        let visitedLinks = new Set();
+        let detailsPath = currentPage == "Requests" ? "/requests.php" : "/torrents.php";
 
-        if(currentPage == "Collage") {
-            torrentLinks = document.querySelectorAll("tr.torrent > td > strong > a.lfTitleElement");
-        } else {
-            torrentLinks = document.querySelectorAll("tr.torrent > td > a.lfTitleElement");
+        for(const row of rows) {
+            if(row.getAttribute("isLFHidden") === "1") {
+                continue;
+            }
+
+            // Right-click management is optional; identify detail links by URL instead.
+            let links = row.querySelectorAll("td > a[href], td > strong > a[href]");
+            for(const link of links) {
+                let url = new URL(link.href, window.location.href);
+                if(url.origin !== window.location.origin || url.pathname !== detailsPath ||
+                    !/^\d+$/.test(url.searchParams.get("id") || "") || url.searchParams.has("action")) {
+                    continue;
+                }
+
+                let resultKey = url.pathname + "?id=" + url.searchParams.get("id");
+                if(!visitedLinks.has(resultKey)) {
+                    GM_openInTab(url.href, {active: false, insert: true});
+                    visitedLinks.add(resultKey);
+                }
+                break;
+            }
         }
-    
-        if(torrentLinks) {
-            let visitedLinks = [];
-            for(let i = 0; i < torrentLinks.length; i++) {
-                let hiddenStatus;
 
-                if(currentPage == "Collage") {
-                    hiddenStatus = torrentLinks[i].parentNode.parentNode.parentNode.getAttribute("isLFHidden");
-                } else {
-                    hiddenStatus = torrentLinks[i].parentNode.parentNode.getAttribute("isLFHidden");
-                }
+        if(visitedLinks.size === 0) {
+            alert("LuminFilter: No unfiltered result links were found on this page.");
+            return;
+        }
 
-                if(hiddenStatus == 0 || hiddenStatus == "" || hiddenStatus == null) {
-                    if(!visitedLinks.includes(torrentLinks[i].href)) {
-                        window.open(torrentLinks[i].href, "_blank");
-                        visitedLinks.push(torrentLinks[i].href);
-                    }
-                }
-            }
-
-            if(lfOpenAllGoNextEnabled) {
-                lfGoForward();
-            }
+        if(lfOpenAllGoNextEnabled) {
+            lfGoForward();
         }
     };
 }
@@ -2293,7 +2697,7 @@ if(lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled && !lfUnfilteredP
     }
 }
 
-let lfTextAreas = new Array("lfBlacklistTaglistArea", "lfHardPassTaglistArea", "lfWhitelistTaglistArea","lfBlacklistTitleListArea","lfHardPassTitleListArea","lfWhitelistTitleListArea","lfBlacklistUploadersArea","lfWhitelistUploadersArea");
+let lfTextAreas = new Array("lfBlacklistTaglistArea", "lfHardPassTaglistArea", "lfWhitelistTaglistArea","lfBlacklistTitleListArea","lfHardPassTitleListArea","lfWhitelistTitleListArea","lfBlacklistUploadersArea","lfWhitelistUploadersArea","lfConditionalRulesArea");
 
 for(let textAreaCounter = 0; textAreaCounter < lfTextAreas.length; textAreaCounter++) {
     document.getElementById(lfTextAreas[textAreaCounter]).addEventListener("keydown", function(event) {
@@ -2304,13 +2708,48 @@ for(let textAreaCounter = 0; textAreaCounter < lfTextAreas.length; textAreaCount
      }, false);
 }
 
-let explanationTogglers = new Array("lfBLE", "lfHPE", "lfHPTE", "lfWLE","lfTitleBLE", "lfTitleWLE", "lfUBLE", "lfUWLE");
+let explanationTogglers = new Array("lfBLE", "lfHPE", "lfHPTE", "lfWLE","lfTitleBLE", "lfTitleWLE", "lfUBLE", "lfUWLE", "lfCRE");
 
 for(let i = 0; i < explanationTogglers.length; i++) {
     document.getElementById(explanationTogglers[i] + "Toggler").onclick = function() {
         document.getElementById(this.id.substring(0, this.id.length - 7)).classList.toggle("hidden");
     };
 }
+
+// Live syntax checking for the conditional rule editor
+function lfEscapeHTML(text) {
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function lfValidateConditionalArea() {
+    let statusNode = document.getElementById("lfConditionalStatus");
+    if(!statusNode) { return; }
+
+    let result = lfCompileConditionalRules(document.getElementById("lfConditionalRulesArea").value);
+
+    statusNode.classList.remove("lfConditionalGood", "lfConditionalBad");
+
+    if(result.errors.length > 0) {
+        statusNode.classList.add("lfConditionalBad");
+        statusNode.innerHTML = result.errors
+            .map(error => `${lfEmojiEnabled ? "⚠️ " : ""}Line ${error.line}: ${lfEscapeHTML(error.message)}`)
+            .join("\n");
+    } else if(result.rules.length > 0) {
+        statusNode.classList.add("lfConditionalGood");
+        statusNode.innerHTML = `${lfEmojiEnabled ? "✔️ " : ""}${result.rules.length} rule${result.rules.length === 1 ? "" : "s"} OK`;
+    } else {
+        statusNode.innerHTML = "No rules defined.";
+    }
+}
+
+document.getElementById("lfConditionalRulesArea").addEventListener("input", lfValidateConditionalArea, false);
+lfValidateConditionalArea();
+
+// The Conditional tab only exists when the feature is switched on
+document.getElementById("lfCheckConditionalEnabled").onclick = function() {
+    document.querySelector('label[for="lfTab5"]').classList.toggle("hidden", !this.checked);
+};
+
 
 if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
     if(currentPage == "Torrent details") {
@@ -2353,7 +2792,7 @@ if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
             // Strip already hidden title fragments, if any
             let currTitle = this.innerHTML;
             let colorIndex = currTitle.indexOf("<color");
-            
+
             if(colorIndex != -1) {
                 currTitle = currTitle.substring(0, colorIndex);
             }
@@ -2375,10 +2814,50 @@ document.getElementById("lfSaveButton").onclick = function() { saveData(); };
 document.getElementById("lfReloadButton").onclick = function() { location.reload(); };
 // End event handler assignment section
 
+let lfAllHiddenGoNextTimer = null;
+// Keep the original rows so Black Hole removals still count as hidden results.
+let lfAutoNextRows = Array.from(torrents).filter(row =>
+    currentPage !== "Requests" || row.querySelector("td > div.tags")
+);
+
+if(!lfUnfilteredPages.includes(currentPage)) {
+    let lfAutoNextObserver = new MutationObserver(lfCheckAllHiddenGoNext);
+    for(const row of lfAutoNextRows) {
+        lfAutoNextObserver.observe(row, {attributes: true, attributeFilter: ["class"]});
+    }
+    lfCheckAllHiddenGoNext();
+}
+
 
 // +-----------+
 // | Functions |
 // +-----------+
+function lfAllRowsHidden() {
+    return lfAllHiddenGoNextEnabled &&
+        !lfUnfilteredPages.includes(currentPage) &&
+        lfAutoNextRows.length > 0 &&
+        lfAutoNextRows.every(row => !row.isConnected || row.classList.contains("hidden"));
+}
+
+function lfCheckAllHiddenGoNext() {
+    if(!lfAllRowsHidden() || !document.querySelector(lfSite.layout.nextPage)) {
+        if(lfAllHiddenGoNextTimer !== null) {
+            window.clearTimeout(lfAllHiddenGoNextTimer);
+            lfAllHiddenGoNextTimer = null;
+        }
+        return;
+    }
+
+    if(lfAllHiddenGoNextTimer === null) {
+        lfAllHiddenGoNextTimer = window.setTimeout(function() {
+            lfAllHiddenGoNextTimer = null;
+            if(lfAllRowsHidden() && document.querySelector(lfSite.layout.nextPage)) {
+                lfGoForward();
+            }
+        }, 2000);
+    }
+}
+
 function toggleTorrents() {
     for(let k = 0; k < torrents.length; k++) {
         torrents[k].classList.toggle("hidden");
@@ -2407,7 +2886,7 @@ function renumberTorrents() {
 
 function adjustHiddenHeaderCount(value) {
     let currNum = headerNode.innerHTML.match(/([0-9]+)/);
-    
+
     if(currNum === null) {
         currNum = value;
     } else {
@@ -2417,7 +2896,7 @@ function adjustHiddenHeaderCount(value) {
 
     if(currNum === 0) {
         headerNode.innerHTML = "LuminFilter";
-        
+
         if(value !== 0) {
             toggleTorrents();
         }
@@ -2449,9 +2928,9 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
     if(boxType == "tag") {
         let infoText = `<b>Tag:</b> <span class="lfMonospace" id="lfRCMBoxTag">${elementValue}</span><br /><br />`;
 
-        let currTagBlacklist = document.getElementById("lfBlacklistTaglistArea").value.split(" ");
-        let currTagHardPassList = document.getElementById("lfHardPassTaglistArea").value.split(" ");
-        let currTagWhitelist = document.getElementById("lfWhitelistTaglistArea").value.split(" ");
+        let currTagBlacklist = lfScopeFilter(lfParseList(document.getElementById("lfBlacklistTaglistArea").value));
+        let currTagHardPassList = lfScopeFilter(lfParseList(document.getElementById("lfHardPassTaglistArea").value));
+        let currTagWhitelist = lfScopeFilter(lfParseList(document.getElementById("lfWhitelistTaglistArea").value));
         let lfRCMBoxChoices = document.getElementById("lfRCMBoxChoices");
 
         if(currTagBlacklist.includes(elementValue)) { // Current tag is in blacklist
@@ -2459,8 +2938,8 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
 
             lfRCMBoxChoices.innerHTML = `
                 <span class="lfRCMButton" id="lfRCMBoxBLRemove">${lfEmojiEnabled ? '➖' : '-'} Remove from blacklist</span><br /><br />
-                ${lfHardPassEnabled ? 
-                    `<span class="lfRCMButton" id="lfRCMBoxHPAdd">${lfEmojiEnabled ? '➕' : '+'} Move to Hard Pass</span><br /><br />` 
+                ${lfHardPassEnabled ?
+                    `<span class="lfRCMButton" id="lfRCMBoxHPAdd">${lfEmojiEnabled ? '➕' : '+'} Move to Hard Pass</span><br /><br />`
                 : ''}
                 <span class="lfRCMButton" id="lfRCMBoxWLAdd">${lfEmojiEnabled ? '➕' : '+'} Move to whitelist</span><br />
             `;
@@ -2480,7 +2959,7 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
                     saveData();
                     recolorTags();
                     closeRCMBox();
-                }; 
+                };
             }
 
             document.getElementById("lfRCMBoxWLAdd").onclick = function() {
@@ -2496,8 +2975,8 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
             lfRCMBoxChoices.innerHTML = `
                 <span class="lfRCMButton" id="lfRCMBoxWLRemove">${lfEmojiEnabled ? '➖' : '-'} Remove from whitelist</span><br /><br />
                 <span class="lfRCMButton" id="lfRCMBoxBLAdd">${lfEmojiEnabled ? '➕' : '+'} Move to blacklist</span><br /><br />
-                ${lfHardPassEnabled ? 
-                    `<span class="lfRCMButton" id="lfRCMBoxHPAdd">${lfEmojiEnabled ? '➕' : '+'} Move to Hard Pass</span><br />` 
+                ${lfHardPassEnabled ?
+                    `<span class="lfRCMButton" id="lfRCMBoxHPAdd">${lfEmojiEnabled ? '➕' : '+'} Move to Hard Pass</span><br />`
                 : ''}
             `;
 
@@ -2524,18 +3003,18 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
                      saveData();
                      recolorTags();
                      closeRCMBox();
-                 }; 
+                 };
              }
         } else if(lfHardPassEnabled && currTagHardPassList.includes(elementValue)) {
                 // Current tag is in Hard Pass and it is enabled
                 infoText = infoText + `This tag was found in your <span class="lfBlacklistIdentifier">Hard Pass blacklist</span>!`;
-    
+
                 lfRCMBoxChoices.innerHTML = `
                     <span class="lfRCMButton" id="lfRCMBoxHPRemove">${lfEmojiEnabled ? '➖' : '-'} Remove from Hard Pass</span><br /><br />
                     <span class="lfRCMButton" id="lfRCMBoxBLAdd">${lfEmojiEnabled ? '➕' : '+'} Move to blacklist</span><br /><br />
                     <span class="lfRCMButton" id="lfRCMBoxWLAdd">${lfEmojiEnabled ? '➕' : '+'} Move to whitelist</span><br />
                 `;
-    
+
                 document.getElementById("lfRCMBoxHPRemove").onclick = function() {
                     let currTag = document.getElementById("lfRCMBoxTag").innerHTML;
                     removeItemFromList("lfHardPassTaglistArea", currTag);
@@ -2543,7 +3022,7 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
                     recolorTags();
                     closeRCMBox();
                 };
-    
+
                 document.getElementById("lfRCMBoxBLAdd").onclick = function() {
                     let currTag = document.getElementById("lfRCMBoxTag").innerHTML;
                     addItemToList("lfBlacklistTaglistArea", "lfHardPassTaglistArea", currTag);
@@ -2551,7 +3030,7 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
                     recolorTags();
                     closeRCMBox();
                 };
-    
+
                 document.getElementById("lfRCMBoxWLAdd").onclick = function() {
                     let currTag = document.getElementById("lfRCMBoxTag").innerHTML;
                     addItemToList("lfWhitelistTaglistArea", "lfHardPassTaglistArea", currTag);
@@ -2564,8 +3043,8 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
 
             lfRCMBoxChoices.innerHTML = `
                 <span class="lfRCMButton" id="lfRCMBoxBLAdd">${lfEmojiEnabled ? '➕' : '+'} Add to blacklist</span><br /><br />
-                ${lfHardPassEnabled ? 
-                    `<span class="lfRCMButton" id="lfRCMBoxHPAdd">${lfEmojiEnabled ? '➕' : '+'} Add to Hard Pass</span><br /><br />` 
+                ${lfHardPassEnabled ?
+                    `<span class="lfRCMButton" id="lfRCMBoxHPAdd">${lfEmojiEnabled ? '➕' : '+'} Add to Hard Pass</span><br /><br />`
                 : ''}
                 <span class="lfRCMButton" id="lfRCMBoxWLAdd">${lfEmojiEnabled ? '➕' : '+'} Add to whitelist</span><br />
             `;
@@ -2585,7 +3064,7 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
                      saveData();
                      recolorTags();
                      closeRCMBox();
-                 }; 
+                 };
              }
 
             document.getElementById("lfRCMBoxWLAdd").onclick = function() {
@@ -2601,8 +3080,8 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
     } else if(boxType == "uploader") {
         let infoText = "<b>Uploader:</b> <span class=\"lfMonospace\" id=\"lfRCMBoxUploader\">" + elementValue + "</span><br /><br />";
 
-        let currUploaderBlacklist = document.getElementById("lfBlacklistUploadersArea").value.split(" ");
-        let currUploaderWhitelist = document.getElementById("lfWhitelistUploadersArea").value.split(" ");
+        let currUploaderBlacklist = lfScopeFilter(lfParseList(document.getElementById("lfBlacklistUploadersArea").value));
+        let currUploaderWhitelist = lfScopeFilter(lfParseList(document.getElementById("lfWhitelistUploadersArea").value));
         let lfRCMBoxChoices = document.getElementById("lfRCMBoxChoices");
 
         if(currUploaderBlacklist.includes(elementValue)) { // Current uploader is in blacklist
@@ -2692,7 +3171,7 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
 
         document.getElementById("lfRCMBoxBLAdd").onclick = function() {
             let currTitlePhrase = document.getElementById("lfRCMTitlePhraseText").value;
-            
+
             addItemToList("lfBlacklistTitleListArea", "lfWhitelistTitleListArea", currTitlePhrase);
             saveData();
             closeRCMBox();
@@ -2700,7 +3179,7 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
 
         document.getElementById("lfRCMBoxHPTAdd").onclick = function() {
             let currTitlePhrase = document.getElementById("lfRCMTitlePhraseText").value;
-            
+
             addItemToList("lfHardPassTitleListArea", "lfWhitelistTitleListArea", currTitlePhrase);
             saveData();
             closeRCMBox();
@@ -2708,13 +3187,13 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
 
         document.getElementById("lfRCMBoxWLAdd").onclick = function() {
             let currTitlePhrase = document.getElementById("lfRCMTitlePhraseText").value;
-            
+
             addItemToList("lfWhitelistTitleListArea", "lfBlacklistTitleListArea", currTitlePhrase);
             saveData();
             closeRCMBox();
         };
     }
-    
+
     box.classList.remove("hidden");
     return false;
 }
@@ -2723,43 +3202,37 @@ function closeRCMBox() {
     document.getElementById("lfRCMBox").classList.add("hidden");
 }
 
+function lfIsPhraseList(tagListAreaName) {
+    return tagListAreaName == "lfWhitelistTitleListArea"
+        || tagListAreaName == "lfBlacklistTitleListArea"
+        || tagListAreaName == "lfHardPassTitleListArea";
+}
+
 function removeItemFromList(tagListAreaName, tagName) {
-    let currList = document.getElementById(tagListAreaName).value.trim().split(" ");
+    let currList = lfParseList(document.getElementById(tagListAreaName).value, lfIsPhraseList(tagListAreaName));
 
     currList = lfRemoveValueForSite(currList, tagName);
 
-    document.getElementById(tagListAreaName).value = currList.join(" ");
-    
+    document.getElementById(tagListAreaName).value = lfStringifyList(currList);
+
     // Show the refresh button because we've done changes
     document.getElementById("lfDynamicRefreshNode").classList.remove("hidden");
 }
 
 function addItemToList(tagListAreaName, oppositeTagListAreaName, filterValue) {
-    let splitChar = " ";
-    if(tagListAreaName == "lfWhitelistTitleListArea" || tagListAreaName == "lfBlacklistTitleListArea" || tagListAreaName == "lfHardPassTitleListArea") {
-        splitChar = ";";
-    } else {
+    let isPhraseList = lfIsPhraseList(tagListAreaName);
+
+    if(!isPhraseList) {
         // Only do opposite removal for tags/uploaders
         removeItemFromList(oppositeTagListAreaName, filterValue);
     }
 
-    let currList = document.getElementById(tagListAreaName).value.trim().split(splitChar);
+    let currList = lfParseList(document.getElementById(tagListAreaName).value, isPhraseList);
 
-    if(splitChar == ";") {
-        // Since titles can include more than one phrase, iterate through an exploded array
-        let titleArray = filterValue.split(splitChar);
+    // The incoming value may itself contain several semicolon-separated entries
+    currList = currList.concat(lfParseList(filterValue, isPhraseList));
 
-        for(let l = 0; l < titleArray.length; l++) {
-            let currPhrase = titleArray[l].trim();
-            if(currPhrase != "") {
-                currList.push(currPhrase);
-            }
-        }
-    } else {
-        currList.push(filterValue);    
-    }
-    
-    document.getElementById(tagListAreaName).value = currList.join(splitChar).replace(/;/,';');
+    document.getElementById(tagListAreaName).value = lfStringifyList([...new Set(currList)]);
 
     // Show the refresh button because we did changes
     document.getElementById("lfDynamicRefreshNode").classList.remove("hidden");
@@ -2771,7 +3244,7 @@ function downloadFile(filename, text) {
     element.setAttribute("download", filename);
     element.style.display = "none";
     document.body.appendChild(element);
-  
+
     element.click();
     document.body.removeChild(element);
 }
@@ -2806,7 +3279,7 @@ function importSettings(event) {
             for(let i = 0; i < settingsNames.length; i++) {
                 GM_deleteValue(settingsNames[i]);
             }
-            
+
             // Import JSON
             let settingsObject = JSON.parse(reader.result);
             for(let i = 0; i < Object.keys(settingsObject).length; i++) {
@@ -2885,6 +3358,16 @@ function resetSettings() {
 }
 
 function saveData() {
+    // Conditional rules are stored verbatim — no lowercasing, no delimiter
+    // mangling — so operator keywords and punctuation survive untouched.
+    let conditionalArea = document.getElementById("lfConditionalRulesArea");
+    if(conditionalArea) {
+        lfConditionalRulesText = conditionalArea.value.replace(/\r\n/g, "\n").trim();
+        GM_setValue("lfConditionalRules", lfConditionalRulesText);
+        lfCompiledConditionals = lfCompileConditionalRules(lfConditionalRulesText);
+        lfValidateConditionalArea();
+    }
+
     let listsToSave = {
         lfTaglist: "lfBlacklistTaglistArea",
         lfHardPassTaglist: "lfHardPassTaglistArea",
@@ -2899,21 +3382,17 @@ function saveData() {
     // Convert to lower case, trim whitespace, remove duplicates and save filter lists
     for(const setting in listsToSave) {
         let strList = document.getElementById(listsToSave[setting]).value.trim().toLowerCase();
-        let delimiter = " ";
-        
-        if(listsToSave[setting].includes("TitleList")) { 
-            delimiter = ";";
-        }
-        
+        let isPhraseList = lfIsPhraseList(listsToSave[setting]);
+
         // Empty diff lists
         let removedList = new Array(0);
         let addedList = new Array(0);
 
         // List from text boxes
-        let freshList = strList.split(delimiter);
+        let freshList = lfParseList(strList, isPhraseList);
 
         // Stored list (might have changed since we made our cache at the start of the script)
-        let storedList = GM_getValue(setting).split(delimiter);
+        let storedList = lfParseList(GM_getValue(setting), isPhraseList);
 
         // Cached copy of stored list (raw, so scoped entries diff correctly)
         let cachedList = lfRawLists[setting];
@@ -2938,7 +3417,7 @@ function saveData() {
                 storedList.splice(foundIndex, 1);
             }
         });
-        
+
         addedList.forEach(function(item) {
             let foundIndex = storedList.indexOf(item);
             if(foundIndex == -1) {
@@ -2952,7 +3431,7 @@ function saveData() {
         storedList = [...new Set(storedList)];
         storedList.sort();
 
-        strList = storedList.join(delimiter);
+        strList = lfStringifyList(storedList);
         GM_setValue(setting, strList);
 
         // Reflect updated list in textarea
@@ -3018,6 +3497,7 @@ function saveData() {
         lfScrollToLFEnabled: "lfCheckScrollToLFEnabled",
         lfHardPassEnabled: "lfCheckHardPassEnabled",
         lfRemoveHardPassResults: "lfCheckRemoveHardPassResults",
+        lfConditionalEnabled: "lfCheckConditionalEnabled",
         lfHideUnseededEnabled: "lfCheckHideUnseeded",
         lfRenumberTorrentsEnabled: "lfCheckRenumberTorrents",
         lfHideCategoryIconsEnabled: "lfCheckHideCategoryIcons",
@@ -3026,12 +3506,16 @@ function saveData() {
         lfFloatingToggleButtonEnabled: "lfCheckFloatingToggleButton",
         lfOpenAllButtonEnabled: "lfCheckOpenAllButton",
         lfOpenAllGoNextEnabled: "lfCheckOpenAllGoNext",
+        lfAllHiddenGoNextEnabled: "lfCheckAllHiddenGoNext",
         lfCustomCSSEnabled: "lfCheckCustomCSS"
     };
 
     for(const setting in checkboxes) {
         GM_setValue(setting, document.getElementById(checkboxes[setting]).checked);
     }
+
+    lfAllHiddenGoNextEnabled = document.getElementById("lfCheckAllHiddenGoNext").checked;
+    lfCheckAllHiddenGoNext();
 
     if(lfEnableApril1stOption) {
         GM_setValue("lfEveryDayIsApril1st", document.getElementById("lfCheckApril1stAllYear").checked);
@@ -3053,8 +3537,8 @@ function saveData() {
     GM_setValue("lfUIFont", document.getElementById("lfUIFont").value);
     GM_setValue("lfTextAreaFont", document.getElementById("lfTextAreaFont").value);
 
-    GM_setValue("lfBlacklistColor", document.getElementById("lfBlacklistColor").value);    
-    GM_setValue("lfHardPassColor", document.getElementById("lfHardPassColor").value);    
+    GM_setValue("lfBlacklistColor", document.getElementById("lfBlacklistColor").value);
+    GM_setValue("lfHardPassColor", document.getElementById("lfHardPassColor").value);
     GM_setValue("lfWhitelistColor", document.getElementById("lfWhitelistColor").value);
 
     GM_setValue("lfTimeout", Number(document.getElementById("lfTimeout").value));
@@ -3148,7 +3632,7 @@ section {
 .lfLabel {
     display: inline-block;
     margin: 0 0 -1px;
-    padding: 15px;
+    padding: 10px;
     font-weight: 600;
     text-align: center;
     color: ${themes[lfSelectedTheme].accentColor};
@@ -3182,8 +3666,25 @@ a.lfLink, a.lfLink:visited {
     border-bottom: 1px solid ${themes[lfSelectedTheme].backgroundColor};
 }
 
-#lfTab1:checked ~ #lfContent1,#lfTab2:checked ~ #lfContent2,#lfTab3:checked ~ #lfContent3,#lfTab4:checked ~ #lfContent4 {
+#lfTab1:checked ~ #lfContent1,#lfTab2:checked ~ #lfContent2,#lfTab3:checked ~ #lfContent3,#lfTab4:checked ~ #lfContent4,#lfTab5:checked ~ #lfContent5 {
     display: block;
+}
+
+.lfConditionalStatus {
+    font-size: 14px;
+    margin-top: 6px;
+    min-height: 1em;
+    white-space: pre-wrap;
+    color: ${themes[lfSelectedTheme].accentColor};
+}
+
+.lfConditionalStatus.lfConditionalBad {
+    color: ${lfBlacklistColor} !important;
+    font-weight: bold;
+}
+
+.lfConditionalStatus.lfConditionalGood {
+    color: ${lfWhitelistColor} !important;
 }
 
 #lfSettingsTab1:checked ~ #lfSettingsContent1,#lfSettingsTab2:checked ~ #lfSettingsContent2,#lfSettingsTab3:checked ~ #lfSettingsContent3,#lfSettingsTab4:checked ~ #lfSettingsContent4 {
@@ -3243,6 +3744,19 @@ a.lfLink, a.lfLink:visited {
     font-size: 18px;
 }
 
+#lfHeader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+#lfHeader .lfNiceButton {
+    margin: 0;
+    white-space: nowrap;
+}
+
 .lfExplanationToggler, ${currentPage !== "My uploaded" ? "#lfHeaderText," : ""} .lfNiceButton, .lfRCMButton, .lfLabel:hover {
     cursor: pointer;
 }
@@ -3269,6 +3783,14 @@ a.lfLink, a.lfLink:visited {
     font-family: ${lfTextAreaFont} !important;
     width: 99%;
     max-width: 99%;
+    height: 100px;
+    resize: vertical;
+    overflow: auto;
+}
+
+/* The custom CSS editor benefits from more room than the filter lists */
+#lfCustomCSSArea {
+    height: 200px;
 }
 
 .lfTextArea, .lfInput {

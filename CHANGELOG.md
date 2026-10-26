@@ -1,4 +1,17 @@
 # Latest changes
+## v3.2.0
+### Contributions from xrt141
+- **Conditional rules**: new *Conditional* tab (enable it in Settings > Filtering). Combine `$TA{tag}`, `$UP{uploader}` and `$TI{title}` with `AND`, `OR`, `NOT` and parentheses, with actions `HIDE`, `PASS` (Hard Pass) and `SHOW`. Live syntax checking as you type
+- All lists are now **semicolon-separated** (old space-separated lists are converted automatically)
+- Filter lists default to a more compact height, and the Open all / Filter all buttons moved into the header
+- *If all rows are hidden, next page*: optionally advances to the next page 2 seconds after everything on a page is hidden
+- *Open all* now uses the userscript manager to open tabs, so browser popup limits no longer apply, and works without right-click management
+### LuminFilter
+- New `$SI{site}` selector for conditional rules, e.g. `SHOW: $SI{happyfappy} AND $UP{someuser}`
+- The next-page link is part of each site's layout profile
+- Fixed HTML escaping that was lost in the contributed code (rule editor and the right-click title box)
+- Scoped (`@site/`) entries are respected by the notification filter export and right-click menus
+
 ## v3.1.0
 ### Multi-site support
 - Now runs on **Empornium** (and Emparadise), **HappyFappy** and **Kufirc**
