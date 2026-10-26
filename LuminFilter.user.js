@@ -1455,8 +1455,8 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <div class="lfNiceBox"><span class="lfEmoji">⤵️</span> Import LuminFilter data<br />
                         <input type="file" accept=".json,text/plain" id="lfImportFilePicker" class="lfInput">
                     </div><br />
-                    <div class="lfNiceBox"><span class="lfEmoji">🔁</span> Import NoShitEmpornium data<br />
-                        <span class="lfExplanationSpan">Reads an export file made by NoShitEmpornium (NSE) and copies its lists and settings in. Settings not in the file are left alone, and NSE itself is never modified.</span><br />
+                    <div class="lfNiceBox"><span class="lfEmoji">🔁</span> Import NSE data<br />
+                        <span class="lfExplanationSpan">Reads an export file made by NSE (the script LuminFilter is forked from) and copies its lists and settings in. Settings not in the file are left alone, and NSE itself is never modified.</span><br />
                         <input type="file" accept=".json,text/plain" id="lfImportNseFilePicker" class="lfInput">
                     </div><br />
                     <span class="lfNiceButton" id="lfExportButton"><span class="lfEmoji">⤴️</span> Export LuminFilter data</span> 
@@ -3328,12 +3328,12 @@ function importNseSettings(event) {
         }
 
         if(count === 0) {
-            alert("No NoShitEmpornium settings were found in that file.");
+            alert("No NSE settings were found in that file.");
             picker.value = "";
             return;
         }
 
-        if(confirm(`Import ${count} settings from this NoShitEmpornium export? Matching LuminFilter settings will be overwritten; everything else is kept.`)) {
+        if(confirm(`Import ${count} settings from this NSE export? Matching LuminFilter settings will be overwritten; everything else is kept.`)) {
             Object.keys(converted).forEach(function(newKey) {
                 GM_setValue(newKey, converted[newKey]);
             });
