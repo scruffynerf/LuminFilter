@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.2.0
+// @version      3.2.1
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -1476,7 +1476,8 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                 <p>
                     <span class="lfExplanationSpan">This section is populated when the page loads, and does not reflect changes done thereafter.</span><br />
                     <br />
-                    Site profile in use: <b>${lfSite.name}</b><br /><br />
+                    Site profile in use: <b>${lfSite.name}</b><br />
+                    Userscript manager: <b>${GM_info.scriptHandler || "unknown"}${GM_info.version ? " " + GM_info.version : ""}</b><br /><br />
                     Number of blacklisted tags: <span class="lfHiddenTag">${lfBlacklistTags.length}</span><br />
                     ${lfHardPassEnabled ? `Number of Hard Pass tags: <span class="lfHiddenTag">${lfHardPassTags.length}</span><br />` : ""}
                     Number of blacklisted title phrases: <span class="lfHiddenTag">${lfBlacklistTitlePhrases.length}</span><br />
@@ -2652,7 +2653,7 @@ if(lfOpenAllButtonEnabled && !lfUnfilteredPages.includes(currentPage)) {
 
                 let resultKey = url.pathname + "?id=" + url.searchParams.get("id");
                 if(!visitedLinks.has(resultKey)) {
-                    GM_openInTab(url.href, {active: false, insert: true});
+                    lfOpenInBackgroundTab(url.href);
                     visitedLinks.add(resultKey);
                 }
                 break;
@@ -2715,6 +2716,16 @@ for(let i = 0; i < explanationTogglers.length; i++) {
 }
 
 // Live syntax checking for the conditional rule editor
+// Open a link in a background tab through the userscript manager (Tampermonkey and Violentmonkey
+// both provide GM_openInTab). Fall back to a normal popup if it's unavailable.
+function lfOpenInBackgroundTab(url) {
+    if(typeof GM_openInTab === "function") {
+        GM_openInTab(url, { active: false, insert: true });
+    } else {
+        window.open(url, "_blank");
+    }
+}
+
 function lfEscapeHTML(text) {
     return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

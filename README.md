@@ -52,10 +52,10 @@ PASS: $TA{trailer} OR $TA{sample}
 - A supported browser:
   - [Firefox](https://getfirefox.com/) (Recommended!)
   - Chromium-based browsers are also supported (Chrome, Edge, Vivaldi, Brave, etc.)
-- The [Tampermonkey](https://tampermonkey.net/) userscript engine addon for your browser
+- A userscript manager addon for your browser: [Tampermonkey](https://tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
 
 # Note on browsers and userscript engines
-Note that LuminFilter is mainly developed on and tested with mainline Firefox and Tampermonkey, and thus Tampermonkey is the only "officially" supported userscript engine. Although I am an avid FF user, I'm not blind to the fact that most of the world uses Chrome, so every release of LuminFilter is also tested and made sure to work on Chromium-based browsers. Waterfox and other comparably niche browser forks and userscript engines might work fully or partly, but are not supported. Thus there is no guarantee it will work on any other combination of browsers and engines aside from FF/Chromium + Tampermonkey.  
+LuminFilter is built to work with both [Tampermonkey](https://tampermonkey.net/) and [Violentmonkey](https://violentmonkey.github.io/), on Firefox and on Chromium-based browsers (Chrome, Edge, Vivaldi, Brave, etc). It only uses the standard `GM_*` functions that both provide. Other userscript managers may work, but aren't tested. If something misbehaves, Options > Settings > About shows which userscript manager and version you are running, which is useful to include in a bug report.
 
 # Privacy
 LuminFilter does not collect any data, and does not send anything to any external websites or servers. The only data stored by LuminFilter are your settings that make the script work. That data is only stored locally in your browser. LuminFilter is free and open source software, and you can verify this claim by looking through the script itself. There is no separate privacy policy, as it is not required when no data is collected. Tampermonkey, on the other hand, collects some anonymized data, read their privacy policy [here](https://www.tampermonkey.net/privacy.php). LuminFilter is not in any way affiliated with Tampermonkey.
@@ -63,9 +63,9 @@ LuminFilter does not collect any data, and does not send anything to any externa
 # How to install and use
 Make sure the checkbox for "Hide tags in lists" is **unchecked** in your user settings on the site, the script won't be able to access tags if they're hidden (hover over your username at the top right of any page and click Settings). In addition, it is recommended that you increase the value of "Max Tags in lists" to a high number such as 1000, so that torrents with a lot of tags will be correctly handled.
 
-1. Install [Tampermonkey](https://tampermonkey.net/)
+1. Install [Tampermonkey](https://tampermonkey.net/) or [Violentmonkey](https://violentmonkey.github.io/)
 1. Install LuminFilter by clicking [here](https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.user.js)
-1. Follow the instructions given by Tampermonkey to install the script
+1. Follow the instructions given by your userscript manager to install the script
 1. Once the script is installed, visit an applicable page on the site (Torrents, Top 10, Collages, Notifications)
 1. Click the Options button in the new LuminFilter configuration area (placed below the search center, or near the top of the torrent list area)
 1. Add your lists of tags, title phrases or uploaders in the newly revealed areas, and check the Settings tab for more goodies
@@ -74,7 +74,7 @@ Make sure the checkbox for "Hide tags in lists" is **unchecked** in your user se
 
 Torrents matching your blacklist rules will now be hidden, and can be shown by clicking the "Toggle X hidden torrents" button. Torrents matching whitelist rules will be shown regardless of blacklist rules. To hide individual torrents, click the eye icon that appears next to it. For more options and information, be sure to check out the settings page within LuminFilter!
 
-You can also check out the latest (and older) changes in the [changelog](https://github.com/scruffynerf/LuminFilter/blob/master/CHANGELOG.md)!
+You can also check out the latest changes in the [changelog](https://github.com/scruffynerf/LuminFilter/blob/master/CHANGELOG.md). Older changelogs can be found at [NSE's site](https://github.com/ceodoe/noshitempornium).
 
 # Coming from NSE?
 LuminFilter is a separate script with its own storage, so you can install it alongside NSE and try it out without touching your NSE setup. To bring your lists and settings over, export them from NSE (Options > Settings > Data management > *Export NSE data*), then in LuminFilter use *Import NSE data* in the same place. This only reads the file; it never modifies NSE.
@@ -94,12 +94,16 @@ If you do any of the following:
 * To **backup** all your LuminFilter data to a file, click the *Export LuminFilter data* button in Options > Settings > Data management. You'll be given a JSON file to download that contains all your settings and filter lists. Store this in a safe place, for example on cloud storage.
 * To **restore** all your data from a file, click the *Browse* button below *Import LuminFilter data* and select your previously backed-up JSON file.
 
-If you can't open the site/LuminFilter (at work, people around, script broken, etc), you can also do it through Tampermonkey:
+If you can't open the site/LuminFilter (at work, people around, script broken, etc), you can also do it through your userscript manager.
+
+**Tampermonkey:**
 1. Enter the Tampermonkey dashboard by clicking its icon on your browser toolbar and selecting "Dashboard"
 1. Click the "Settings" tab, and set "Config mode" to "Advanced"
 1. Go back to the "Installed Userscripts" list, and click on LuminFilter
 1. Select the "Storage" tab, and copy-paste all that text into a file, save it to your computer or on cloud storage
 1. You have now backed up your settings. To restore them, paste your settings back into the Storage text box and click "Save", or use the import function in Options > Settings > Data management.
+
+**Violentmonkey:** open the Violentmonkey dashboard, open LuminFilter in its editor and use the *Values* tab to view and edit the stored settings. The export and import buttons in Options > Settings > Data management work the same in both managers and are the easiest way to back up.
 
 The files produced by these two backup methods use the same format (JSON), and such they are interchangeable; a file produced using one method will be able to be imported with the other method.
 

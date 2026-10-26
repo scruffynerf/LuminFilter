@@ -1,4 +1,10 @@
 # Latest changes
+## v3.2.1
+- Works with both Tampermonkey and Violentmonkey; the README covers installing and backing up on either
+- "Open all" falls back to a normal popup if the userscript manager doesn't provide `GM_openInTab`
+- Options > Settings > About now shows which userscript manager you are running
+- Removed the old changelog from this repository
+
 ## v3.2.0
 ### Contributions from xrt141
 - **Conditional rules**: new *Conditional* tab (enable it in Settings > Filtering). Combine `$TA{tag}`, `$UP{uploader}` and `$TI{title}` with `AND`, `OR`, `NOT` and parentheses, with actions `HIDE`, `PASS` (Hard Pass) and `SHOW`. Live syntax checking as you type
@@ -36,4 +42,4 @@
 
 ---
 
-[(Older versions)](https://github.com/scruffynerf/LuminFilter/blob/master/CHANGELOG_OLD.md#older-versions)
+Older changelogs can be found at [NSE's site](https://github.com/ceodoe/noshitempornium).
