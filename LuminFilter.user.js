@@ -167,9 +167,9 @@ const lfSiteProfiles = {
     kufirc: {
         name: "Kufirc",
         hosts: [/(^|\.)kufirc\.com$/],
-        // Checked against Kufirc's listing and bookmark markup: the default layout's bookmark selector (i.bookmarked)
-        // matches. The status icon stack holds both a download and a leeching icon at once, so the snatched/seeding/
-        // grabbed class names are still unverified (TODO: need a row for a torrent in each state).
+        // Checked against Kufirc's listing and bookmark markup: the default layout matches. The first icon in the
+        // download link carries the seeding/grabbed/leeching class (the freeleech icon is outside that link, so it
+        // isn't mistaken for a status). "snatched" is assumed to follow the same pattern but hasn't been seen yet.
         layout: lfLayout()
     }
 };
