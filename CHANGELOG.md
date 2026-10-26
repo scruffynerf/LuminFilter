@@ -1,4 +1,7 @@
 # Latest changes
+## v3.4.1
+- New script icon (a filter funnel), replacing a site favicon
+
 ## v3.4.0
 - Fixed: right-clicking a title did nothing (and threw an error) unless Hard Pass was enabled, because the menu tried to wire up a button that only exists with Hard Pass on
 - Faster filtering: tag, uploader and phrase lists are prepared once instead of being re-processed for every row, and title badges are added in one step
