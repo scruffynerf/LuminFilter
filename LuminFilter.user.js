@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.0.0
+// @version      3.1.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -22,6 +22,18 @@
 // @include      /^https://emparadise\.rs/user\.php\?action=notify/
 // @include      /^https://emparadise\.rs/requests\.php/
 // @exclude      /^https://emparadise\.rs/top10\.php.*(\?|&)(type=(users|tags|taggers))/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/torrents\.php*/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/collage\/*
+// @include      /^https://www\.happyfappy\.(net|sx|is)/top10\.php*/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/user\.php\?action=notify/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/requests\.php/
+// @exclude      /^https://www\.happyfappy\.(net|sx|is)/top10\.php.*(\?|&)(type=(users|tags|taggers))/
+// @include      /^https://kufirc\.com/torrents\.php*/
+// @include      /^https://kufirc\.com/collage\/*
+// @include      /^https://kufirc\.com/top10\.php*/
+// @include      /^https://kufirc\.com/user\.php\?action=notify/
+// @include      /^https://kufirc\.com/requests\.php/
+// @exclude      /^https://kufirc\.com/top10\.php.*(\?|&)(type=(users|tags|taggers))/
 // @run-at       document-end
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -55,6 +67,106 @@ let lfVersion = GM_info.script.version.split(".");
 let lfVersionNum = Number(lfVersion[0] + lfVersion[1].padStart(2, "0") + lfVersion[2].padStart(2, "0"));
 let lfSavedVersion = GM_getValue("lfSavedVersion", lfVersionNum);
 GM_setValue("lfSavedVersion", lfSavedVersion);
+
+
+// +------------------------------+
+// | Site profiles and list scope |
+// +------------------------------+
+
+// Every supported site has a profile: which hostnames it lives on, and how its
+// HTML differs from the default Luminance layout. To support a new site, add a
+// profile here (and its @include lines in the header). Anything a profile
+// doesn't override falls back to lfDefaultLayout.
+const lfDefaultLayout = {
+    // Icon element in a torrent row whose classes say whether you grabbed/seed/leech/snatched it
+    statusIcon: "td > span.torrent_icon_container > span.icon > a > div.icon_container > div.icon_stack > i",
+    // The class names that icon carries for each state
+    statusClasses: { snatched: "snatched", seeding: "seeding", grabbed: "grabbed", leeching: "leeching" },
+    // Element present in a torrent row when it's bookmarked
+    bookmarked: "i.bookmarked"
+};
+
+function lfLayout(overrides = {}) {
+    return { ...lfDefaultLayout, ...overrides };
+}
+
+const lfSiteProfiles = {
+    empornium: {
+        name: "Empornium",
+        hosts: [/(^|\.)empornium\.(me|sx|is)$/, /(^|\.)emparadise\.rs$/],
+        layout: lfLayout()
+    },
+    happyfappy: {
+        name: "HappyFappy",
+        hosts: [/(^|\.)happyfappy\.(net|sx|is)$/],
+        layout: lfLayout({
+            statusIcon: "td > span.torrent_icon_container > a > span",
+            statusClasses: { snatched: "icon_disk_snatched", seeding: "icon_disk_seed", grabbed: "icon_disk_grabbed", leeching: "icon_disk_leech" },
+            bookmarked: "td > span.torrent_icon_container > span.icon_bookmarked"
+        })
+    },
+    kufirc: {
+        name: "Kufirc",
+        hosts: [/(^|\.)kufirc\.com$/],
+        // TODO: unverified. Uses the default layout until Kufirc's markup is checked.
+        layout: lfLayout()
+    }
+};
+
+function lfDetectSite() {
+    const host = window.location.hostname.toLowerCase();
+    for(const [id, profile] of Object.entries(lfSiteProfiles)) {
+        if(profile.hosts.some(function(re) { return re.test(host); })) {
+            return { id: id, ...profile };
+        }
+    }
+    return { id: "unknown", name: host, layout: lfDefaultLayout };
+}
+
+const lfSite = lfDetectSite();
+
+// Filter list entries are either plain or scoped:
+//   value                  applies on every site
+//   @site/value            applies only on that site
+//   @site1,site2/value     applies only on those sites
+// (site ids are the keys of lfSiteProfiles)
+function lfParseEntry(entry) {
+    const match = /^@([a-z0-9_,-]+)\/(.*)$/i.exec(entry.trim());
+    if(!match) { return { sites: null, value: entry }; }
+    return { sites: match[1].toLowerCase().split(",").filter(Boolean), value: match[2] };
+}
+
+// The entries that apply on the current site, with scope prefixes stripped
+function lfScopeFilter(entries) {
+    const result = [];
+    for(const entry of entries) {
+        const parsed = lfParseEntry(entry);
+        if(parsed.sites === null) {
+            result.push(entry);
+        } else if(parsed.value.trim() !== "" && parsed.sites.includes(lfSite.id)) {
+            result.push(parsed.value);
+        }
+    }
+    return result;
+}
+
+// Remove a value as far as the current site is concerned: plain entries are removed,
+// entries scoped to this site are removed, and for multi-site entries only this site is dropped.
+function lfRemoveValueForSite(entries, value) {
+    const result = [];
+    for(const entry of entries) {
+        const parsed = lfParseEntry(entry);
+        if(parsed.sites === null) {
+            if(entry !== value) { result.push(entry); }
+        } else if(parsed.value !== value || !parsed.sites.includes(lfSite.id)) {
+            result.push(entry);
+        } else {
+            const remaining = parsed.sites.filter(function(site) { return site !== lfSite.id; });
+            if(remaining.length) { result.push("@" + remaining.join(",") + "/" + parsed.value); }
+        }
+    }
+    return result;
+}
 
 // Load and initialize saved filter lists
 let lfBlacklistTaglist = GM_getValue("lfTaglist", "enter.tags.here separated.by.spaces no.newlines").trim();
@@ -112,6 +224,29 @@ lfWhitelistUploaders.sort();
 lfWhitelistUploadersList = lfWhitelistUploaders.join(" ");
 if(lfWhitelistUploaders.length === 1 && lfWhitelistUploaders[0] === "") { lfWhitelistUploaders = new Array(0); }
 GM_setValue("lfWhitelistUploaders", lfWhitelistUploadersList);
+
+// What's loaded above is the raw lists, as stored (including scoped entries for any site).
+// The textareas and saveData work on these. Matching uses the filtered copies below,
+// which only hold the entries that apply on the current site.
+const lfRawLists = {
+    lfTaglist: lfBlacklistTags,
+    lfHardPassTaglist: lfHardPassTags,
+    lfWhitelist: lfWhitelistTags,
+    lfBlacklistTitles: lfBlacklistTitlePhrases,
+    lfHardPassTitles: lfHardPassTitlePhrases,
+    lfWhitelistTitles: lfWhitelistTitlePhrases,
+    lfUploaders: lfBlacklistUploaders,
+    lfWhitelistUploaders: lfWhitelistUploaders
+};
+
+lfBlacklistTags = lfScopeFilter(lfBlacklistTags);
+lfHardPassTags = lfScopeFilter(lfHardPassTags);
+lfWhitelistTags = lfScopeFilter(lfWhitelistTags);
+lfBlacklistTitlePhrases = lfScopeFilter(lfBlacklistTitlePhrases);
+lfHardPassTitlePhrases = lfScopeFilter(lfHardPassTitlePhrases);
+lfWhitelistTitlePhrases = lfScopeFilter(lfWhitelistTitlePhrases);
+lfBlacklistUploaders = lfScopeFilter(lfBlacklistUploaders);
+lfWhitelistUploaders = lfScopeFilter(lfWhitelistUploaders);
 
 // Load saved options
 //  Filtering options
@@ -444,6 +579,9 @@ htmlContent.innerHTML = `
 
         <section id="lfContent1">
             <div class="lfFieldDiv">
+                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@happyfappy/someone</b>, or list several sites with commas: <b>@empornium,kufirc/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+            </div>
+            <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfTagBlacklistHeader"><span class="lfEmoji">👎</span> Tag blacklist <small>(space-separated)</small></span><sup class="lfExplanationToggler" id="lfBLEToggler">[?]</sup><br />
                 <div id="lfBLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
@@ -519,6 +657,9 @@ htmlContent.innerHTML = `
 
         <section id="lfContent2">
             <div class="lfFieldDiv">
+                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@happyfappy/someone</b>, or list several sites with commas: <b>@empornium,kufirc/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+            </div>
+            <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfTitleBlacklistHeader"><span class="lfEmoji">👎</span> Title blacklist <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfTitleBLEToggler">[?]</sup><br />
                 <div id="lfTitleBLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
@@ -578,6 +719,9 @@ htmlContent.innerHTML = `
         </section>
 
         <section id="lfContent3">
+            <div class="lfFieldDiv">
+                <span class="lfExplanationSpan">Entries apply on every site. To limit one to a single site, prefix it with <b>@site/</b>, e.g. <b>@happyfappy/someone</b>, or list several sites with commas: <b>@empornium,kufirc/some.tag</b>. Sites: ${Object.keys(lfSiteProfiles).join(", ")}. You are on <b>${lfSite.name}</b>.</span>
+            </div>
             <div class="lfFieldDiv">
                 <span class="lfImageButton lfListHeader" id="lfUploaderBlacklistHeader"><span class="lfEmoji">👎</span> Uploader blacklist <small>(space-separated)</small></span><sup class="lfExplanationToggler" id="lfUBLEToggler">[?]</sup><br />
                 <div id="lfUBLE" class="lfExplanationBox hidden">
@@ -959,6 +1103,7 @@ htmlContent.innerHTML = `
                 <p>
                     <span class="lfExplanationSpan">This section is populated when the page loads, and does not reflect changes done thereafter.</span><br />
                     <br />
+                    Site profile in use: <b>${lfSite.name}</b><br /><br />
                     Number of blacklisted tags: <span class="lfHiddenTag">${lfBlacklistTags.length}</span><br />
                     ${lfHardPassEnabled ? `Number of Hard Pass tags: <span class="lfHiddenTag">${lfHardPassTags.length}</span><br />` : ""}
                     Number of blacklisted title phrases: <span class="lfHiddenTag">${lfBlacklistTitlePhrases.length}</span><br />
@@ -1425,43 +1570,22 @@ if(torrents) {
                 }
             }
     
-            let torrentIconElement = torrents[i].querySelector("td > span.torrent_icon_container > span.icon > a > div.icon_container > div.icon_stack > i");
-    
+            // Your relationship with the torrent (snatched/seeding/grabbed/leeching); selectors and
+            // class names come from the current site's layout profile
+            let torrentIconElement = torrents[i].querySelector(lfSite.layout.statusIcon);
+
             if(torrentIconElement) {
-                if(lfHideSnatchedEnabled) {
-                    if(torrentIconElement.classList.contains("snatched")) {
+                let statusChecks = [
+                    [lfHideSnatchedEnabled, "snatched"],
+                    [lfHideSeedingEnabled, "seeding"],
+                    [lfHideGrabbedEnabled, "grabbed"],
+                    [lfHideLeechingEnabled, "leeching"]
+                ];
+
+                for(const [enabled, status] of statusChecks) {
+                    if(enabled && torrentIconElement.classList.contains(lfSite.layout.statusClasses[status])) {
                         currentHidden = true;
-    
-                        if(lfBypassWhitelistsEnabled) {
-                            currentBypassWhitelist = true;
-                        }
-                    }
-                }
-    
-                if(lfHideSeedingEnabled) {
-                    if(torrentIconElement.classList.contains("seeding")) {
-                        currentHidden = true;
-    
-                        if(lfBypassWhitelistsEnabled) {
-                            currentBypassWhitelist = true;
-                        }
-                    }
-                }
-    
-                if(lfHideGrabbedEnabled) {
-                    if(torrentIconElement.classList.contains("grabbed")) {
-                        currentHidden = true;
-    
-                        if(lfBypassWhitelistsEnabled) {
-                            currentBypassWhitelist = true;
-                        }
-                    }
-                }
-    
-                if(lfHideLeechingEnabled) {
-                    if(torrentIconElement.classList.contains("leeching")) {
-                        currentHidden = true;
-    
+
                         if(lfBypassWhitelistsEnabled) {
                             currentBypassWhitelist = true;
                         }
@@ -1470,7 +1594,7 @@ if(torrents) {
             }
 
             if(lfHideBookmarkedEnabled) {
-                let bmElement = torrents[i].querySelector("i.bookmarked");
+                let bmElement = torrents[i].querySelector(lfSite.layout.bookmarked);
                 if(bmElement) {
                     currentHidden = true;
                     
@@ -2602,10 +2726,7 @@ function closeRCMBox() {
 function removeItemFromList(tagListAreaName, tagName) {
     let currList = document.getElementById(tagListAreaName).value.trim().split(" ");
 
-    let index = currList.indexOf(tagName);
-    if (index > -1) {
-        currList.splice(index, 1);
-    }
+    currList = lfRemoveValueForSite(currList, tagName);
 
     document.getElementById(tagListAreaName).value = currList.join(" ");
     
@@ -2794,34 +2915,8 @@ function saveData() {
         // Stored list (might have changed since we made our cache at the start of the script)
         let storedList = GM_getValue(setting).split(delimiter);
 
-        // Cached copy of stored list
-        let cachedList;
-        switch(setting) {
-            case "lfTaglist":
-                cachedList = lfBlacklistTags;
-                break;
-            case "lfHardPassTaglist":
-                cachedList = lfHardPassTags;
-                break;
-            case "lfWhitelist":
-                cachedList = lfWhitelistTags;
-                break;
-            case "lfBlacklistTitles":
-                cachedList = lfBlacklistTitlePhrases;
-                break;
-            case "lfHardPassTitles":
-                cachedList = lfHardPassTitlePhrases;
-                break;
-            case "lfWhitelistTitles":
-                cachedList = lfWhitelistTitlePhrases;
-                break;
-            case "lfUploaders":
-                cachedList = lfBlacklistUploaders;
-                break;
-            case "lfWhitelistUploaders":
-                cachedList = lfWhitelistUploaders;
-                break;
-        }
+        // Cached copy of stored list (raw, so scoped entries diff correctly)
+        let cachedList = lfRawLists[setting];
 
         // Compute additions and removals from OG array
         freshList.forEach(function(item){
@@ -2863,39 +2958,40 @@ function saveData() {
         // Reflect updated list in textarea
         document.getElementById(listsToSave[setting]).value = strList;
 
-        // Update cached copy of list
+        // Update cached copies of list: raw for saving, filtered for matching on this site
+        lfRawLists[setting] = storedList;
         switch(setting) {
             case "lfTaglist":
                 lfBlacklistTaglist = strList;
-                lfBlacklistTags = storedList;
+                lfBlacklistTags = lfScopeFilter(storedList);
                 break;
             case "lfHardPassTaglist":
                 lfHardPassTaglist = strList;
-                lfHardPassTags = storedList;
+                lfHardPassTags = lfScopeFilter(storedList);
                 break;
             case "lfWhitelist":
                 lfWhitelistTaglist = strList;
-                lfWhitelistTags = storedList;
+                lfWhitelistTags = lfScopeFilter(storedList);
                 break;
             case "lfBlacklistTitles":
                 lfBlacklistTitleList = strList;
-                lfBlacklistTitlePhrases = storedList;
+                lfBlacklistTitlePhrases = lfScopeFilter(storedList);
                 break;
             case "lfHardPassTitles":
                 lfHardPassTitleList = strList;
-                lfHardPassTitlePhrases = storedList;
+                lfHardPassTitlePhrases = lfScopeFilter(storedList);
                 break;
             case "lfWhitelistTitles":
                 lfWhitelistTitleList = strList;
-                lfWhitelistTitlePhrases = storedList;
+                lfWhitelistTitlePhrases = lfScopeFilter(storedList);
                 break;
             case "lfUploaders":
                 lfBlacklistUploadersList = strList;
-                lfBlacklistUploaders = storedList;
+                lfBlacklistUploaders = lfScopeFilter(storedList);
                 break;
             case "lfWhitelistUploaders":
                 lfWhitelistUploadersList = strList;
-                lfWhitelistUploaders = storedList;
+                lfWhitelistUploaders = lfScopeFilter(storedList);
                 break;
         }
     }

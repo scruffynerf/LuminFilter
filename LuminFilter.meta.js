@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.0.0
+// @version      3.1.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -22,6 +22,18 @@
 // @include      /^https://emparadise\.rs/user\.php\?action=notify/
 // @include      /^https://emparadise\.rs/requests\.php/
 // @exclude      /^https://emparadise\.rs/top10\.php.*(\?|&)(type=(users|tags|taggers))/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/torrents\.php*/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/collage\/*
+// @include      /^https://www\.happyfappy\.(net|sx|is)/top10\.php*/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/user\.php\?action=notify/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/requests\.php/
+// @exclude      /^https://www\.happyfappy\.(net|sx|is)/top10\.php.*(\?|&)(type=(users|tags|taggers))/
+// @include      /^https://kufirc\.com/torrents\.php*/
+// @include      /^https://kufirc\.com/collage\/*
+// @include      /^https://kufirc\.com/top10\.php*/
+// @include      /^https://kufirc\.com/user\.php\?action=notify/
+// @include      /^https://kufirc\.com/requests\.php/
+// @exclude      /^https://kufirc\.com/top10\.php.*(\?|&)(type=(users|tags|taggers))/
 // @run-at       document-end
 // @grant        GM_getValue
 // @grant        GM_setValue

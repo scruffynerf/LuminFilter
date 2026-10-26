@@ -1,6 +1,22 @@
 # LuminFilter
 LuminFilter is a fully featured filtering solution for Luminance-based torrent sites, starting with Empornium. It is a fork of [LuminFilter](https://github.com/ceodoe/noshitempornium) (LuminFilter) by ceodoe, being reworked to support multiple sites with their own layouts, plus filters that apply either everywhere or only on a specific site. Hide torrents based on tags, titles, uploaders, whether you previously downloaded it, and lots more!
 
+# Supported sites
+- Empornium (including Emparadise)
+- HappyFappy
+- Kufirc *(layout not yet verified)*
+
+# Site-specific filters
+Everything you put in a list applies on every supported site. To limit an entry to specific sites, prefix it with `@site/`:
+
+```
+jerk.off.instruction            applies everywhere
+@happyfappy/someuser            only on HappyFappy
+@empornium,kufirc/some.tag      on Empornium and Kufirc, not HappyFappy
+```
+
+Site names are `empornium`, `happyfappy` and `kufirc`. This works in every tag, title and uploader list. Titles can contain spaces (`@kufirc/some phrase`), since only the leading `@site/` is special.
+
 # Features
 - Maintain a blacklist of tags, titles, and uploaders you'd like to automatically hide
 - Whitelists to ignore the above blacklist rules

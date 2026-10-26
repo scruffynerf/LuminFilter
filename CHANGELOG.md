@@ -1,4 +1,14 @@
 # Latest changes
+## v3.1.0
+### Multi-site support
+- Now runs on **Empornium** (and Emparadise), **HappyFappy** and **Kufirc**
+- Per-site profiles describe each site's hostnames and HTML layout; adding a site means adding a profile and its `@include` lines. HappyFappy's snatched/seeding/grabbed/leeching and bookmark detection uses its own selectors
+- Kufirc currently uses the default layout and is **unverified**
+### Site-specific filters
+- Every list entry applies to all sites by default. Prefix an entry with `@site/` to limit it to one site (e.g. `@happyfappy/someuser`), or `@site1,site2/` for several (e.g. `@empornium,kufirc/some.tag`). Works in all tag, title and uploader lists (blacklist, whitelist, hard pass)
+- Right-click removal on a site removes the entry for that site, leaving it intact on the others
+- Options shows which site profile is in use
+
 ## v3.0.0
 ### Renamed to LuminFilter
 - NoShitEmpornium is now **LuminFilter**, a fork that will support multiple Luminance-based sites
