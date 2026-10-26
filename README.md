@@ -45,6 +45,7 @@ PASS: $TA{trailer} OR $TA{sample}
 - Neat toggle button and GUI to manage lists and settings
 - Conditional rules: combine tags, titles, uploaders and sites with AND, OR and NOT
 - Optionally jump to the next page when everything on a page is hidden
+- "Backfill results": load the next few result pages onto the current one, filtered like the rest
 - Left/Right arrow-key paging, optionally on every page of the site
 - Actively updated
 - Lots more!
@@ -145,6 +146,7 @@ Older changelogs can be found at [NSE's site](https://github.com/ceodoe/noshitem
 
 # Credits
 - **ceodoe**: author of [NSE](https://github.com/ceodoe/noshitempornium), which LuminFilter is forked from
+- **Jm Casler**: the "Backfill results" button, from [a pull request to NSE](https://github.com/ceodoe/noshitempornium/pull/12) that was never merged
 - **xrt141**: conditional rules engine, semicolon-delimited lists, compact header buttons, "if all rows are hidden, go to next page", and Open all via the userscript manager
 
 # Contribute

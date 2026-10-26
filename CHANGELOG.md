@@ -1,4 +1,6 @@
 # Latest changes
+## v3.5.0
+- **Backfill results** button on torrent lists: loads the next pages (1-15, set in Settings) onto the current page and runs the new rows through all your filters, including the eye icon, right-click menus and the Black Hole. Rows already on the page are skipped, new rows follow the "show hidden" view if it is on, and pager links for loaded pages are struck through. Based on Jm Casler's [pull request #12 to NSE](https://github.com/ceodoe/noshitempornium/pull/12); reworked to reuse LuminFilter's own row filtering instead of a second copy of it
 ## v3.4.1
 - New script icon (a filter funnel), replacing a site favicon
 

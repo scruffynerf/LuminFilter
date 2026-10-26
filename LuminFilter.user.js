@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.4.1
+// @version      3.5.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -9,7 +9,7 @@
 // @supportURL   https://github.com/scruffynerf/LuminFilter/issues
 // @homepageURL  https://github.com/scruffynerf/LuminFilter/
 // @icon         https://raw.githubusercontent.com/scruffynerf/LuminFilter/master/assets/icon.png
-// @author       ceodoe, xrt141, scruffynerf
+// @author       ceodoe, xrt141, Jm Casler, scruffynerf
 // @include      /^https://www\.empornium\.(me|sx|is)/.*/
 // @include      /^https://emparadise\.rs/.*/
 // @include      /^https://www\.happyfappy\.(net|sx|is)/.*/
@@ -23,7 +23,7 @@
 // @grant        GM_openInTab
 // ==/UserScript==
 //
-// Copyright © 2015-2026 ceodoe, xrt141, scruffynerf
+// Copyright © 2015-2026 ceodoe, xrt141, Jm Casler, scruffynerf
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@
 //   xrt141     - conditional rules engine (AND/OR/NOT), semicolon-delimited lists, compact
 //                header buttons, "if all rows are hidden, go to next page", Open all via
 //                the userscript manager
+//   Jm Casler  - "Backfill results" button (NSE pull request #12, reworked here)
 //   scruffynerf - LuminFilter: multi-site profiles, site-specific filters
 // See CHANGELOG.md for version history.
 
@@ -657,6 +658,15 @@ let lfOpenAllButtonEnabled = GM_getValue("lfOpenAllButtonEnabled", true);
 let lfOpenAllGoNextEnabled = GM_getValue("lfOpenAllGoNextEnabled", false);
 let lfAllHiddenGoNextEnabled = GM_getValue("lfAllHiddenGoNextEnabled", false);
 
+//   Backfill results button
+function lfClampPageLimit(value) {
+    value = Number(value);
+    if(isNaN(value) || value < 1) { return 5; }
+    return Math.min(Math.floor(value), 15);
+}
+let lfBackfillButtonEnabled = GM_getValue("lfBackfillButtonEnabled", true);
+let lfBackfillPageLimit = lfClampPageLimit(GM_getValue("lfBackfillPageLimit", 5));
+
 //   Fonts
 let lfUIFont = GM_getValue("lfUIFont", "Helvetica");
 let lfTextAreaFont = GM_getValue("lfTextAreaFont", "Monospace");
@@ -919,6 +929,11 @@ htmlContent.innerHTML = `
             <span class="lfNiceButton" id="lfOpenAllButton" title="Open all unfiltered results in new tabs">
                 <span class="lfEmoji">📂</span> Open all
             </span>
+        ` : ''}
+        ${currentPage == "Torrents" && lfBackfillButtonEnabled ? `
+            <span class="lfNiceButton" id="lfBackfillButton" title="Load the following result pages onto this one and filter them">
+                <span class="lfEmoji">🔁</span> Backfill results
+            </span><span id="lfBackfillStatus" class="lfExplanationSpan"></span>
         ` : ''}
         ${!lfUnfilteredPages.includes(currentPage) && lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled ? `
             <span class="lfNiceButton" id="lfFilterAllButton" title="Individually blacklist and hide all unfiltered results">
@@ -1422,6 +1437,15 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     </label><br /><br />
                     <span class="lfExplanationSpan lfESOffset">(Waits 2 seconds, then clicks Next. Stops at the last page.)</span><br />
 
+                    <input type="checkbox" id="lfCheckBackfillButton"${lfBackfillButtonEnabled ? ' checked' : ''} />
+                    <label for="lfCheckBackfillButton" class="lfSettingsCheckbox">
+                        <span class="lfEmoji">🔁</span> Show the "Backfill results" button on torrent lists
+                    </label><br />
+                    <span class="lfExplanationSpan lfESOffset">(Loads the next result pages onto the current one and filters them like the rest)</span><br />
+
+                    Pages to backfill per click: <br />
+                    <input type="text" class="lfInput" style="width: 50px;" value="${lfBackfillPageLimit}" id="lfBackfillPageLimit" /> <span class="lfExplanationSpan">(1-15, default 5)</span><br />
+
                     <br />
 
                     User interface font family: <br />
@@ -1561,7 +1585,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
             <section id="lfSettingsContent4">
                 <h3 class="lfH3">About</h3>
                 <p>
-                    Copyright &copy; 2015-2026 ceodoe, xrt141, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
+                    Copyright &copy; 2015-2026 ceodoe, xrt141, Jm Casler, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141, and the Backfill results button is based on Jm Casler's pull request to NSE. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
                 </p>
 
                 <h3 class="lfH3">Statistics</h3>
@@ -2029,6 +2053,9 @@ function lfFilterRow(row, i) {
 // +---------------------+
 let count = 0;
 let torrents = document.querySelectorAll("tr.torrent");
+let lfHiddenTorrentsToggled = false;   // true while the "show hidden" view is on
+let lfBackfillNextURL = null;
+let lfNextRowId = 100000;               // element ids for eye icons on backfilled rows (above any page position)
 
 if(currentPage == "Requests") {
     torrents = document.querySelectorAll("#request_table tr");
@@ -2444,6 +2471,15 @@ document.getElementById("lfThemeDropdown").onchange = function() {
     descriptionNode.innerHTML = lfThemeDescriptions[selectedTheme];
 };
 
+if(lfBackfillButtonEnabled && currentPage == "Torrents") {
+    lfBackfillNextURL = lfNextPageURL(document);
+    if(!lfBackfillNextURL) {
+        lfDisableBackfillButton("No more pages");
+    } else {
+        document.getElementById("lfBackfillButton").onclick = function() { lfBackfillResults(); };
+    }
+}
+
 if(lfOpenAllButtonEnabled && !lfUnfilteredPages.includes(currentPage)) {
     document.getElementById("lfOpenAllButton").onclick = function() {
         let rows = document.querySelectorAll(currentPage == "Requests" ? "#request_table tr" : "tr.torrent");
@@ -2598,8 +2634,9 @@ let lfAutoNextRows = Array.from(torrents).filter(row =>
     currentPage !== "Requests" || row.querySelector("td > div.tags")
 );
 
+let lfAutoNextObserver = null;
 if(!lfUnfilteredPages.includes(currentPage)) {
-    let lfAutoNextObserver = new MutationObserver(lfCheckAllHiddenGoNext);
+    lfAutoNextObserver = new MutationObserver(lfCheckAllHiddenGoNext);
     for(const row of lfAutoNextRows) {
         lfAutoNextObserver.observe(row, {attributes: true, attributeFilter: ["class"]});
     }
@@ -2764,6 +2801,8 @@ function lfClearIndividualRows(icon) {
 }
 
 function toggleTorrents() {
+    lfHiddenTorrentsToggled = !lfHiddenTorrentsToggled;
+
     for(let k = 0; k < torrents.length; k++) {
         torrents[k].classList.toggle("hidden");
     }
@@ -2809,6 +2848,200 @@ function adjustHiddenHeaderCount(value) {
         headerNode.innerHTML = "Toggle 1 hidden torrent";
     } else {
         headerNode.innerHTML = "Toggle " + currNum + " hidden torrents";
+    }
+}
+
+// +----------------------------------------------------------------------+
+// | Backfill: load the following result pages onto this one and filter them |
+// | Idea and first implementation: Jm Casler (NSE pull request #12)          |
+// +----------------------------------------------------------------------+
+function lfAbsoluteURL(href) {
+    return new URL(href, window.location.href).href;
+}
+
+// The next results page according to a (fetched or current) document's pager
+function lfNextPageURL(sourceDocument) {
+    const nextLink = sourceDocument.querySelector(lfSite.layout.nextPage);
+    return nextLink ? lfAbsoluteURL(nextLink.getAttribute("href")) : null;
+}
+
+// Fallback when a fetched page has no "next" link: the next pager number we haven't loaded yet
+function lfNextPagerURLAfter(currentURL) {
+    const pageLinks = Array.from(document.querySelectorAll("a.pager_page"));
+    const index = pageLinks.findIndex(link => lfAbsoluteURL(link.getAttribute("href")) === currentURL);
+    if(index === -1) { return null; }
+
+    const next = pageLinks.slice(index + 1).find(link => !link.classList.contains("lfBackfilledPagerPage"));
+    return next ? lfAbsoluteURL(next.getAttribute("href")) : null;
+}
+
+// Point the pager's "next" links at the first page we haven't loaded
+function lfUpdateBackfillNextURL(nextURL) {
+    lfBackfillNextURL = nextURL;
+
+    if(nextURL) {
+        document.querySelectorAll(lfSite.layout.nextPage).forEach(function(link) { link.href = nextURL; });
+    }
+}
+
+function lfMarkBackfilledPagerLink(loadedURL) {
+    document.querySelectorAll("a.pager_page").forEach(function(link) {
+        if(lfAbsoluteURL(link.getAttribute("href")) === loadedURL) {
+            link.classList.add("lfBackfilledPagerPage");
+        }
+    });
+}
+
+function lfSetBackfillStatus(text) {
+    const node = document.getElementById("lfBackfillStatus");
+    if(node) { node.textContent = text ? " " + text : ""; }
+}
+
+function lfSetBackfillBusy(busy) {
+    const button = document.getElementById("lfBackfillButton");
+    if(button) { button.classList.toggle("lfDisabledButton", busy); }
+}
+
+function lfDisableBackfillButton(text) {
+    const button = document.getElementById("lfBackfillButton");
+    if(button) {
+        button.classList.add("lfDisabledButton");
+        button.onclick = null;
+    }
+    lfSetBackfillStatus(text);
+}
+
+function lfTorrentIDFromRow(row) {
+    const link = row.querySelector("td > a[href*='id=']");
+    const match = link ? link.getAttribute("href").match(/id=([0-9]+)/) : null;
+    return match ? match[1] : null;
+}
+
+// Rows parsed from another page don't run their inline scripts (they define the hover preview data)
+function lfRunRowScripts(row) {
+    row.querySelectorAll("script").forEach(function(old) {
+        const fresh = document.createElement("script");
+        fresh.textContent = old.textContent;
+        old.parentNode.replaceChild(fresh, old);
+    });
+}
+
+// While the "show hidden" view is on, new rows must follow it: hidden ones shown, the rest hidden
+function lfApplyToggleState(row) {
+    if(lfHiddenTorrentsToggled) {
+        row.classList.toggle("hidden", row.getAttribute("isLFHidden") !== "1");
+    }
+}
+
+// Run freshly appended rows through everything the original rows went through.
+// Returns how many of them ended up hidden.
+function lfProcessBackfilledRows(rows) {
+    const hiddenBefore = count;
+
+    for(const row of rows) {
+        lfRunRowScripts(row);
+        lfFilterRow(row, lfNextRowId++);
+
+        if(lfRightClickManagementEnabled) {
+            lfMarkRowForMenus(row);
+            lfBindMenus(row);
+        }
+
+        if(lfHideCategoryIconsEnabled) {
+            const catsCol = row.querySelector(".cats_col");
+            if(catsCol && catsCol.nextElementSibling) {
+                catsCol.nextElementSibling.setAttribute("colspan", "2");
+                catsCol.style.display = "none";
+            }
+        }
+
+        lfApplyToggleState(row);
+
+        // Keep them in the "all rows hidden?" check used by the auto-next option
+        lfAutoNextRows.push(row);
+        if(lfAutoNextObserver) { lfAutoNextObserver.observe(row, {attributes: true, attributeFilter: ["class"]}); }
+
+        if(lfHardPassEnabled && lfRemoveHardPassResults && row.classList.contains("lfHardPassRemove")) {
+            row.remove();
+        }
+    }
+
+    return count - hiddenBefore;
+}
+
+async function lfBackfillResults() {
+    const pageLimit = lfClampPageLimit(GM_getValue("lfBackfillPageLimit", lfBackfillPageLimit));
+    const lastRow = torrents.length ? torrents[torrents.length - 1] : null;
+    const targetBody = lastRow ? lastRow.parentNode : null;
+    let nextURL = lfBackfillNextURL || lfNextPageURL(document);
+    let pagesLoaded = 0;
+
+    if(!targetBody) {
+        lfSetBackfillStatus("Could not find the torrent table");
+        return;
+    }
+
+    if(!nextURL) {
+        lfDisableBackfillButton("No more pages");
+        return;
+    }
+
+    // Only take rows from the same table on the other pages, and skip ones we already have
+    const table = targetBody.closest("table");
+    const rowSelector = (table && table.id ? "#" + table.id + " " : "") + "tr.torrent";
+    const knownIDs = new Set();
+    document.querySelectorAll(rowSelector).forEach(function(row) {
+        const id = lfTorrentIDFromRow(row);
+        if(id) { knownIDs.add(id); }
+    });
+
+    lfSetBackfillBusy(true);
+
+    try {
+        for(let pageCount = 0; pageCount < pageLimit && nextURL; pageCount++) {
+            lfSetBackfillStatus("Loading page " + (pageCount + 1) + " of " + pageLimit + "...");
+            const currentURL = nextURL;
+
+            const response = await fetch(currentURL, { credentials: "same-origin" });
+            if(!response.ok) { throw new Error("Failed to fetch " + currentURL); }
+
+            const fetchedDocument = new DOMParser().parseFromString(await response.text(), "text/html");
+            const appendedRows = [];
+
+            fetchedDocument.querySelectorAll(rowSelector).forEach(function(fetchedRow) {
+                const id = lfTorrentIDFromRow(fetchedRow);
+                if(id && !knownIDs.has(id)) {
+                    const imported = document.importNode(fetchedRow, true);
+                    targetBody.appendChild(imported);
+                    appendedRows.push(imported);
+                    knownIDs.add(id);
+                }
+            });
+
+            if(appendedRows.length === 0) {
+                nextURL = null;
+                break;
+            }
+
+            const newlyHidden = lfProcessBackfilledRows(appendedRows);
+            if(newlyHidden !== 0) { adjustHiddenHeaderCount(newlyHidden); }
+
+            lfMarkBackfilledPagerLink(currentURL);
+            pagesLoaded++;
+            nextURL = lfNextPageURL(fetchedDocument) || lfNextPagerURLAfter(currentURL);
+        }
+
+        lfUpdateBackfillNextURL(nextURL);
+        torrents = document.querySelectorAll("tr.torrent");
+
+        lfSetBackfillStatus(pagesLoaded === 0 ? "No results loaded" : "");
+
+        if(!lfBackfillNextURL) { lfDisableBackfillButton("No more pages"); }
+    } catch(error) {
+        console.error(error);
+        lfSetBackfillStatus("Backfill failed");
+    } finally {
+        if(lfBackfillNextURL) { lfSetBackfillBusy(false); }
     }
 }
 
@@ -3402,6 +3635,7 @@ function saveData() {
         lfOpenAllButtonEnabled: "lfCheckOpenAllButton",
         lfOpenAllGoNextEnabled: "lfCheckOpenAllGoNext",
         lfAllHiddenGoNextEnabled: "lfCheckAllHiddenGoNext",
+        lfBackfillButtonEnabled: "lfCheckBackfillButton",
         lfCustomCSSEnabled: "lfCheckCustomCSS"
     };
 
@@ -3437,6 +3671,10 @@ function saveData() {
     GM_setValue("lfWhitelistColor", document.getElementById("lfWhitelistColor").value);
 
     GM_setValue("lfTimeout", Number(document.getElementById("lfTimeout").value));
+
+    lfBackfillPageLimit = lfClampPageLimit(document.getElementById("lfBackfillPageLimit").value);
+    GM_setValue("lfBackfillPageLimit", lfBackfillPageLimit);
+    document.getElementById("lfBackfillPageLimit").value = lfBackfillPageLimit;
 
     // We need to escape backslashes in the custom CSS as it will be included in a back-ticked CSS block
     let css = document.getElementById("lfCustomCSSArea").value;
@@ -3707,6 +3945,16 @@ a.lfLink, a.lfLink:visited {
 
 .lfNiceButton, .lfRCMButton {
     padding-top: 3px;
+}
+
+.lfDisabledButton {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.lfBackfilledPagerPage {
+    text-decoration: line-through !important;
+    opacity: 0.65;
 }
 
 .lfBtmAiryDiv {
