@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.5.0
+// @version      3.5.1
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -9,7 +9,7 @@
 // @supportURL   https://github.com/scruffynerf/LuminFilter/issues
 // @homepageURL  https://github.com/scruffynerf/LuminFilter/
 // @icon         https://raw.githubusercontent.com/scruffynerf/LuminFilter/master/assets/icon.png
-// @author       ceodoe, xrt141, Jm Casler, scruffynerf
+// @author       ceodoe, xrt141, mchamster, scruffynerf
 // @include      /^https://www\.empornium\.(me|sx|is)/.*/
 // @include      /^https://emparadise\.rs/.*/
 // @include      /^https://www\.happyfappy\.(net|sx|is)/.*/
@@ -23,7 +23,7 @@
 // @grant        GM_openInTab
 // ==/UserScript==
 //
-// Copyright © 2015-2026 ceodoe, xrt141, Jm Casler, scruffynerf
+// Copyright © 2015-2026 ceodoe, xrt141, mchamster, scruffynerf
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@
 //   xrt141     - conditional rules engine (AND/OR/NOT), semicolon-delimited lists, compact
 //                header buttons, "if all rows are hidden, go to next page", Open all via
 //                the userscript manager
-//   Jm Casler  - "Backfill results" button (NSE pull request #12, reworked here)
+//   mchamster  - "Backfill results" button (NSE pull request #12, reworked here)
 //   scruffynerf - LuminFilter: multi-site profiles, site-specific filters
 // See CHANGELOG.md for version history.
 
@@ -1585,7 +1585,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
             <section id="lfSettingsContent4">
                 <h3 class="lfH3">About</h3>
                 <p>
-                    Copyright &copy; 2015-2026 ceodoe, xrt141, Jm Casler, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141, and the Backfill results button is based on Jm Casler's pull request to NSE. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
+                    Copyright &copy; 2015-2026 ceodoe, xrt141, mchamster, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141, and the Backfill results button is based on mchamster's pull request to NSE. Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
                 </p>
 
                 <h3 class="lfH3">Statistics</h3>
@@ -2853,7 +2853,7 @@ function adjustHiddenHeaderCount(value) {
 
 // +----------------------------------------------------------------------+
 // | Backfill: load the following result pages onto this one and filter them |
-// | Idea and first implementation: Jm Casler (NSE pull request #12)          |
+// | Idea and first implementation: mchamster (NSE pull request #12)          |
 // +----------------------------------------------------------------------+
 function lfAbsoluteURL(href) {
     return new URL(href, window.location.href).href;

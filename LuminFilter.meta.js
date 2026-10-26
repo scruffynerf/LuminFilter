@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.5.0
+// @version      3.5.1
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -9,7 +9,7 @@
 // @supportURL   https://github.com/scruffynerf/LuminFilter/issues
 // @homepageURL  https://github.com/scruffynerf/LuminFilter/
 // @icon         https://raw.githubusercontent.com/scruffynerf/LuminFilter/master/assets/icon.png
-// @author       ceodoe, xrt141, Jm Casler, scruffynerf
+// @author       ceodoe, xrt141, mchamster, scruffynerf
 // @include      /^https://www\.empornium\.(me|sx|is)/.*/
 // @include      /^https://emparadise\.rs/.*/
 // @include      /^https://www\.happyfappy\.(net|sx|is)/.*/
