@@ -1,4 +1,9 @@
 # Latest changes
+## v3.3.0
+- **Arrow-key navigation is now built in**, so the separate GlobalArrowKeyNavigation script is no longer needed (uninstall it). Left/Right arrows page through results on filter pages as before; the new option *Use the arrow keys on every other page of the site too* (Settings, off by default) extends this site-wide
+- Arrow keys are ignored while typing in a field and when Ctrl/Alt/Shift/Meta is held (so Alt+Left still goes Back)
+- The script now loads on every page of the supported sites, but only builds the filter UI on listing pages; elsewhere it does nothing unless site-wide arrow keys are enabled
+
 ## v3.2.1
 - Works with both Tampermonkey and Violentmonkey; the README covers installing and backing up on either
 - "Open all" falls back to a normal popup if the userscript manager doesn't provide `GM_openInTab`

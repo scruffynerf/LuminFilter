@@ -45,6 +45,7 @@ PASS: $TA{trailer} OR $TA{sample}
 - Neat toggle button and GUI to manage lists and settings
 - Conditional rules: combine tags, titles, uploaders and sites with AND, OR and NOT
 - Optionally jump to the next page when everything on a page is hidden
+- Left/Right arrow-key paging, optionally on every page of the site
 - Actively updated
 - Lots more!
 
@@ -78,6 +79,9 @@ You can also check out the latest changes in the [changelog](https://github.com/
 
 # Coming from NSE?
 LuminFilter is a separate script with its own storage, so you can install it alongside NSE and try it out without touching your NSE setup. To bring your lists and settings over, export them from NSE (Options > Settings > Data management > *Export NSE data*), then in LuminFilter use *Import NSE data* in the same place. This only reads the file; it never modifies NSE.
+
+## Replacing the old arrow-key script
+Arrow-key navigation used to be a separate companion script. It is now built into LuminFilter (Settings > *Use the arrow keys on every other page of the site too*), so you can uninstall the companion.
 
 # Important note on data loss
 If you do any of the following:

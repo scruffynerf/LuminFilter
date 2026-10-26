@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.2.1
+// @version      3.3.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -10,30 +10,10 @@
 // @homepageURL  https://github.com/scruffynerf/LuminFilter/
 // @icon         https://www.google.com/s2/favicons?domain=empornium.sx
 // @author       ceodoe, xrt141, scruffynerf
-// @include      /^https://www\.empornium\.(me|sx|is)/torrents\.php*/
-// @include      /^https://www\.empornium\.(me|sx|is)/collage\/*
-// @include      /^https://www\.empornium\.(me|sx|is)/top10\.php*/
-// @include      /^https://www\.empornium\.(me|sx|is)/user\.php\?action=notify/
-// @include      /^https://www\.empornium\.(me|sx|is)/requests\.php/
-// @exclude      /^https://www\.empornium\.(me|sx|is)/top10\.php.*(\?|&)(type=(users|tags|taggers))/
-// @include      /^https://emparadise\.rs/torrents\.php*/
-// @include      /^https://emparadise\.rs/collage\/*
-// @include      /^https://emparadise\.rs/top10\.php*/
-// @include      /^https://emparadise\.rs/user\.php\?action=notify/
-// @include      /^https://emparadise\.rs/requests\.php/
-// @exclude      /^https://emparadise\.rs/top10\.php.*(\?|&)(type=(users|tags|taggers))/
-// @include      /^https://www\.happyfappy\.(net|sx|is)/torrents\.php*/
-// @include      /^https://www\.happyfappy\.(net|sx|is)/collage\/*
-// @include      /^https://www\.happyfappy\.(net|sx|is)/top10\.php*/
-// @include      /^https://www\.happyfappy\.(net|sx|is)/user\.php\?action=notify/
-// @include      /^https://www\.happyfappy\.(net|sx|is)/requests\.php/
-// @exclude      /^https://www\.happyfappy\.(net|sx|is)/top10\.php.*(\?|&)(type=(users|tags|taggers))/
-// @include      /^https://kufirc\.com/torrents\.php*/
-// @include      /^https://kufirc\.com/collage\/*
-// @include      /^https://kufirc\.com/top10\.php*/
-// @include      /^https://kufirc\.com/user\.php\?action=notify/
-// @include      /^https://kufirc\.com/requests\.php/
-// @exclude      /^https://kufirc\.com/top10\.php.*(\?|&)(type=(users|tags|taggers))/
+// @include      /^https://www\.empornium\.(me|sx|is)/.*/
+// @include      /^https://emparadise\.rs/.*/
+// @include      /^https://www\.happyfappy\.(net|sx|is)/.*/
+// @include      /^https://kufirc\.com/.*/
 // @run-at       document-end
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -65,6 +45,73 @@
 //                the userscript manager
 //   scruffynerf - LuminFilter: multi-site profiles, site-specific filters
 // See CHANGELOG.md for version history.
+
+// +----------------------------------------+
+// | Page navigation and which pages we run |
+// +----------------------------------------+
+
+// Go to the previous/next page of paginated content (falls back to first/last)
+function lfGoBack(event = null) {
+    let prevLink = document.getElementsByClassName("pager_prev")[0];
+    if(prevLink) {
+        if(event) { event.preventDefault(); }
+        prevLink.click();
+    } else {
+        let firstLink = document.getElementsByClassName("pager_first")[0];
+        if(firstLink) {
+            if(event) { event.preventDefault(); }
+            firstLink.click();
+        }
+    }
+}
+
+function lfGoForward(event = null) {
+    let nextLink = document.getElementsByClassName("pager_next")[0];
+    if(nextLink) {
+        if(event) { event.preventDefault(); }
+        nextLink.click();
+    } else {
+        let lastLink = document.getElementsByClassName("pager_last")[0];
+        if(lastLink) {
+            if(event) { event.preventDefault(); }
+            lastLink.click();
+        }
+    }
+}
+
+// Left/Right arrow keys move between pages, except while typing or when a modifier is held
+// (Alt+Left is the browser's own Back shortcut)
+function lfArrowKeyHandler(event) {
+    if(event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) { return; }
+
+    let target = event.target;
+    if(target && (target.nodeName === "TEXTAREA" || target.nodeName === "INPUT" || target.nodeName === "SELECT" || target.isContentEditable)) { return; }
+
+    if(event.code == "ArrowLeft") {
+        lfGoBack(event);
+    } else if(event.code == "ArrowRight") {
+        lfGoForward(event);
+    }
+}
+
+// Pages that have torrent lists LuminFilter can filter. On every other page of a supported
+// site, LuminFilter does nothing except (optionally) arrow key navigation.
+function lfIsFilterPage() {
+    const path = window.location.pathname;
+    const query = window.location.search;
+
+    if(/\/top10\.php$/.test(path) && /(\?|&)type=(users|tags|taggers)/.test(query)) { return false; }
+
+    return /\/(torrents|top10|requests)\.php$/.test(path)
+        || /\/collage(\/|$)/.test(path)
+        || (/\/user\.php$/.test(path) && /(\?|&)action=notify/.test(query));
+}
+
+if(!lfIsFilterPage()) {
+    if(GM_getValue("lfGlobalArrowNavigationEnabled", false)) {
+        document.addEventListener("keydown", lfArrowKeyHandler);
+    }
+} else {
 
 // +----------------------------+
 // | Loading and initialization |
@@ -667,6 +714,7 @@ let lfThemeDescriptions = {
 let lfRenumberTorrentsEnabled = GM_getValue("lfRenumberTorrentsEnabled", true);
 let lfHideCategoryIconsEnabled = GM_getValue("lfHideCategoryIconsEnabled", false);
 let lfArrowNavigationEnabled = GM_getValue("lfArrowNavigationEnabled", false);
+let lfGlobalArrowNavigationEnabled = GM_getValue("lfGlobalArrowNavigationEnabled", false);
 
 //   "Fun"
 let lfRussianRouletteEnabled = GM_getValue("lfRussianRouletteEnabled", false);
@@ -1425,8 +1473,12 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <label for="lfCheckArrowNavigation" class="lfSettingsCheckbox">
                         <span class="lfEmoji">⌨️</span> Navigate paginated torrent lists with keyboard arrow keys
                     </label><br />
-                    <span class="lfExplanationSpan lfESOffset">(Note that LuminFilter only runs on torrent lists, if you want</span><br />
-                    <span class="lfExplanationSpan lfESOffset">arrow key navigation globally on the site, use <a class="lfLink" href="https://github.com/scruffynerf/LuminFilter/raw/master/GlobalArrowKeyNavigation.user.js" target="_blank"><b><u>this script</u></b></a>)</span>
+                    <br />
+                    <input type="checkbox" id="lfCheckGlobalArrowNavigation"${lfGlobalArrowNavigationEnabled ? ' checked' : ''} />
+                    <label for="lfCheckGlobalArrowNavigation" class="lfSettingsCheckbox">
+                        <span class="lfEmoji">⌨️</span> Use the arrow keys on every other page of the site too
+                    </label><br />
+                    <span class="lfExplanationSpan lfESOffset">(Forums, comments, and anywhere else with page links. Works even when the option above is off.)</span><br />
                 </div>
 
                 <div class="lfTopAiryDiv lfBtmAiryDiv">
@@ -2566,16 +2618,8 @@ if(lfHardPassEnabled && lfRemoveHardPassResults && !lfUnfilteredPages.includes(c
 }
 
 // Assign event handlers if arrow key navigation is enabled
-if(lfArrowNavigationEnabled && currentPage !== "Notification filters" && currentPage !== "Torrent details") {
-    document.onkeydown = function(event) {
-        if(event.target.nodeName !== "TEXTAREA" && event.target.nodeName !== "INPUT") {
-            if (event.code == "ArrowLeft") {
-                lfGoBack(event);
-            } else if (event.code == "ArrowRight") {
-                lfGoForward(event);
-            }
-        }
-    };
+if(lfGlobalArrowNavigationEnabled || (lfArrowNavigationEnabled && currentPage !== "Notification filters" && currentPage !== "Torrent details")) {
+    document.addEventListener("keydown", lfArrowKeyHandler);
 }
 
 let headerNode = document.getElementById("lfHeaderText");
@@ -3511,6 +3555,7 @@ function saveData() {
         lfRenumberTorrentsEnabled: "lfCheckRenumberTorrents",
         lfHideCategoryIconsEnabled: "lfCheckHideCategoryIcons",
         lfArrowNavigationEnabled: "lfCheckArrowNavigation",
+        lfGlobalArrowNavigationEnabled: "lfCheckGlobalArrowNavigation",
         lfUpdateToastsEnabled: "lfCheckUpdateToasts",
         lfFloatingToggleButtonEnabled: "lfCheckFloatingToggleButton",
         lfOpenAllButtonEnabled: "lfCheckOpenAllButton",
@@ -3560,34 +3605,6 @@ function saveData() {
     let time = new Date().toLocaleTimeString();
     document.getElementById("lfSaveDiv").innerHTML = "Saved at " + time + "!";
     document.getElementById("lfSaveDiv").classList.remove("hidden");
-}
-
-function lfGoBack(event = null) {
-    let prevLink = document.getElementsByClassName("pager_prev")[0];
-    if(prevLink) {
-        if(event) { event.preventDefault(); }
-        prevLink.click();
-    } else {
-        let firstLink = document.getElementsByClassName("pager_first")[0];
-        if(firstLink) {
-            if(event) { event.preventDefault(); }
-            firstLink.click();
-        }
-    }
-}
-
-function lfGoForward(event = null) {
-    let nextLink = document.getElementsByClassName("pager_next")[0];
-    if(nextLink) {
-        if(event) { event.preventDefault(); }
-        nextLink.click();
-    } else {
-        let lastLink = document.getElementsByClassName("pager_last")[0];
-        if(lastLink) {
-            if(event) { event.preventDefault(); }
-            lastLink.click();
-        }
-    }
 }
 
 // +-----+
@@ -3924,3 +3941,5 @@ ${lfCustomCSSEnabled ? lfCustomCSS : ''}
 
 `);
 // End CSS section
+
+} // End of filter page code
