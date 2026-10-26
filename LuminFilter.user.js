@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.3.0
+// @version      3.3.1
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -1713,7 +1713,7 @@ if(torrents) {
 
                 lfRuleContext = {
                     tags: contextTags,
-                    title: titleElement ? titleElement.innerHTML.trim().toLowerCase() : "",
+                    title: titleElement ? titleElement.textContent.trim().toLowerCase() : "",
                     uploader: uploaderElement ? uploaderElement.innerHTML.trim().toLowerCase() : "",
                     site: lfSite.id
                 };
@@ -2076,17 +2076,19 @@ if(torrents) {
                 }
             }
 
+            // Match against the title as the site rendered it (before any badges are appended below)
+            const torrentTitle = titleElement.textContent.trim().toLowerCase();
+
             // Scan title for lfBlacklistTitlePhrases
             // ...For every blacklisted phrase:
             for(let tblCount = 0; tblCount < lfBlacklistTitlePhrases.length; tblCount++) {
                 let currentTBLPhrase = lfBlacklistTitlePhrases[tblCount].trim().toLowerCase();
-                let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
 
                 if(currentTBLPhrase != "") {
                     if(torrentTitle.includes(currentTBLPhrase)) {
                         currentHidden = true;
                         if(russianRouletteBulletInChamber == false) {
-                            titleElement.innerHTML = titleElement.innerHTML + ` <color class="lfHiddenTitle">(${currentTBLPhrase})</color>`;
+                            titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfHiddenTitle">(${lfEscapeHTML(currentTBLPhrase)})</span>`;
                         }
                     }
                 }
@@ -2096,14 +2098,13 @@ if(torrents) {
             if(lfHardPassEnabled) {
                 for(let tblCount = 0; tblCount < lfHardPassTitlePhrases.length; tblCount++) {
                     let currentTBLPhrase = lfHardPassTitlePhrases[tblCount].trim().toLowerCase();
-                    let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
 
                     if(currentTBLPhrase != "") {
                         if(torrentTitle.includes(currentTBLPhrase)) {
                             currentHidden = true;
                             currentForceHide = true;
                             if(russianRouletteBulletInChamber == false) {
-                                titleElement.innerHTML = titleElement.innerHTML + ` <color class="lfHardPassTitle">(${currentTBLPhrase})</color>`;
+                                titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfHardPassTitle">(${lfEscapeHTML(currentTBLPhrase)})</span>`;
 
                                 if(lfRemoveHardPassResults) {
                                     torrents[i].classList.add("lfHardPassRemove");
@@ -2120,12 +2121,11 @@ if(torrents) {
             if(currentBypassWhitelist == false) {
                 for(let tblCount = 0; tblCount < lfWhitelistTitlePhrases.length; tblCount++) {
                     let currentTWLPhrase = lfWhitelistTitlePhrases[tblCount].trim().toLowerCase();
-                    let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
 
                     if(currentTWLPhrase != "") {
                         if(torrentTitle.includes(currentTWLPhrase)) {
                             currentWhitelisted = true;
-                            titleElement.innerHTML = titleElement.innerHTML + ` <color class="lfWhitelistedTitle">(${currentTWLPhrase})</color>`;
+                            titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfWhitelistedTitle">(${lfEscapeHTML(currentTWLPhrase)})</span>`;
                         }
                     }
                 }
@@ -2274,16 +2274,18 @@ if(torrents) {
         newSpan.appendChild(h2textChild);
         titleElement = newSpan;
 
+        // Match against the title as the site rendered it (before any badges are appended below)
+        const torrentTitle = titleElement.textContent.trim().toLowerCase();
+
         // Scan title for lfBlacklistTitlePhrases
         // ...For every blacklisted phrase:
         for(let tblCount = 0; tblCount < lfBlacklistTitlePhrases.length; tblCount++) {
             let currentTBLPhrase = lfBlacklistTitlePhrases[tblCount].trim().toLowerCase();
-            let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
 
             if(currentTBLPhrase != "") {
                 if(torrentTitle.includes(currentTBLPhrase)) {
-                    titleElement.innerHTML = titleElement.innerHTML + ` <color class="lfHiddenTitle">(${currentTBLPhrase})</color>`;
-                    titleElement2.innerHTML = titleElement2.innerHTML + ` <color class="lfHiddenTitle">(${currentTBLPhrase})</color>`;
+                    titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfHiddenTitle">(${lfEscapeHTML(currentTBLPhrase)})</span>`;
+                    titleElement2.innerHTML = titleElement2.innerHTML + ` <span class="lfHiddenTitle">(${lfEscapeHTML(currentTBLPhrase)})</span>`;
                 }
             }
         }
@@ -2291,12 +2293,11 @@ if(torrents) {
         // Scan title for lfHardPassTitlePhrases
         for(let tblCount = 0; tblCount < lfHardPassTitlePhrases.length; tblCount++) {
             let currentTBLPhrase = lfHardPassTitlePhrases[tblCount].trim().toLowerCase();
-            let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
 
             if(currentTBLPhrase != "") {
                 if(torrentTitle.includes(currentTBLPhrase)) {
-                    titleElement.innerHTML = titleElement.innerHTML + ` <color class="lfHardPassTitle">(${currentTBLPhrase})</color>`;
-                    titleElement2.innerHTML = titleElement2.innerHTML + ` <color class="lfHardPassTitle">(${currentTBLPhrase})</color>`;
+                    titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfHardPassTitle">(${lfEscapeHTML(currentTBLPhrase)})</span>`;
+                    titleElement2.innerHTML = titleElement2.innerHTML + ` <span class="lfHardPassTitle">(${lfEscapeHTML(currentTBLPhrase)})</span>`;
                 }
             }
         }
@@ -2305,12 +2306,11 @@ if(torrents) {
         // ...For every whitelisted phrase:
         for(let tblCount = 0; tblCount < lfWhitelistTitlePhrases.length; tblCount++) {
             let currentTWLPhrase = lfWhitelistTitlePhrases[tblCount].trim().toLowerCase();
-            let torrentTitle = titleElement.innerHTML.trim().toLowerCase();
 
             if(currentTWLPhrase != "") {
                 if(torrentTitle.includes(currentTWLPhrase)) {
-                    titleElement.innerHTML = titleElement.innerHTML + ` <color class="lfWhitelistedTitle">(${currentTWLPhrase})</color>`;
-                    titleElement2.innerHTML = titleElement2.innerHTML + ` <color class="lfWhitelistedTitle">(${currentTWLPhrase})</color>`;
+                    titleElement.innerHTML = titleElement.innerHTML + ` <span class="lfWhitelistedTitle">(${lfEscapeHTML(currentTWLPhrase)})</span>`;
+                    titleElement2.innerHTML = titleElement2.innerHTML + ` <span class="lfWhitelistedTitle">(${lfEscapeHTML(currentTWLPhrase)})</span>`;
                 }
             }
         }
@@ -2809,54 +2809,17 @@ document.getElementById("lfCheckConditionalEnabled").onclick = function() {
 
 
 if(lfRightClickManagementEnabled && currentPage !== "Notification filters") {
+    function lfBindTagMenus() {
+        document.querySelectorAll(".lfTagElement").forEach(function(el) { lfBindContextMenu(el, "tag"); });
+    }
+
     if(currentPage == "Torrent details") {
-        let currTaglist = document.querySelector("#torrent_tags");
-        let observerOptions = {subtree: true, childList: true};
-        let mObserver = new MutationObserver(function() {
-            let allTagElements = document.querySelectorAll(".lfTagElement");
-            for(let i = 0; i < allTagElements.length; i++) {
-                allTagElements[i].addEventListener('contextmenu', function(event) {
-                    event.preventDefault();
-                    showRCMBox("tag", this.innerHTML.trim(), event.pageX, event.pageY);
-                }, false);
-            }
-        });
-
-        mObserver.observe(currTaglist, observerOptions);
-    } else {
-        let allTagElements = document.querySelectorAll(".lfTagElement");
-        for(let i = 0; i < allTagElements.length; i++) {
-            allTagElements[i].addEventListener('contextmenu', function(event) {
-                event.preventDefault();
-                showRCMBox("tag", this.innerHTML.trim(), event.pageX, event.pageY);
-            }, false);
-        }
+        new MutationObserver(lfBindTagMenus).observe(document.querySelector("#torrent_tags"), {subtree: true, childList: true});
     }
+    lfBindTagMenus();
 
-    let allUploaderElements = document.querySelectorAll(".lfUploaderElement");
-    for(let j = 0; j < allUploaderElements.length; j++) {
-        allUploaderElements[j].addEventListener('contextmenu', function(event) {
-            event.preventDefault();
-            showRCMBox("uploader", this.innerHTML.trim(), event.pageX, event.pageY);
-        }, false);
-    }
-
-    let allTitleElements = document.querySelectorAll(".lfTitleElement");
-    for(let k = 0; k < allTitleElements.length; k++) {
-        allTitleElements[k].addEventListener('contextmenu', function(event) {
-            event.preventDefault();
-
-            // Strip already hidden title fragments, if any
-            let currTitle = this.innerHTML;
-            let colorIndex = currTitle.indexOf("<color");
-
-            if(colorIndex != -1) {
-                currTitle = currTitle.substring(0, colorIndex);
-            }
-
-            showRCMBox("title", currTitle.trim(), event.pageX, event.pageY);
-        }, false);
-    }
+    document.querySelectorAll(".lfUploaderElement").forEach(function(el) { lfBindContextMenu(el, "uploader"); });
+    document.querySelectorAll(".lfTitleElement").forEach(function(el) { lfBindContextMenu(el, "title"); });
 
     document.getElementById("lfRCMClose").onclick = function() {
         this.parentNode.classList.add("hidden");
@@ -2962,6 +2925,23 @@ function adjustHiddenHeaderCount(value) {
     } else {
         headerNode.innerHTML = "Toggle " + currNum + " hidden torrents";
     }
+}
+
+// Attach a right-click handler to an element exactly once, however often this is called
+// (the torrent details taglist is rebuilt by the page, which re-runs the observers)
+function lfBindContextMenu(element, kind) {
+    if(element.dataset.lfRcmBound) { return; }
+    element.dataset.lfRcmBound = "1";
+    element.addEventListener("contextmenu", function(event) {
+        event.preventDefault();
+        let value = this.innerHTML.trim();
+        if(kind === "title") {
+            let titleClone = this.cloneNode(true);
+            titleClone.querySelectorAll(".lfHiddenTitle, .lfHardPassTitle, .lfWhitelistedTitle").forEach(function(badge) { badge.remove(); });
+            value = titleClone.textContent.trim();
+        }
+        showRCMBox(kind, value, event.pageX, event.pageY);
+    }, false);
 }
 
 function showRCMBox(boxType, elementValue, mouseX, mouseY) {
@@ -3215,7 +3195,7 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
         lfRCMBoxInfoText.innerHTML = infoText;
     } else if(boxType == "title") {
         let infoText = `Customize the title phrase you would like to filter in the text box below. You can use a semicolon <span class="lfMonospace">;</span> to separate multiple phrases:<br /><br />
-        <input type="text" class="lfInput" id="lfRCMTitlePhraseText" value="${elementValue.replace(/"/g, '&quot;')}"></input><br />`;
+        <input type="text" class="lfInput" id="lfRCMTitlePhraseText" value="${lfEscapeHTML(elementValue).replace(/"/g, '&quot;')}"></input><br />`;
         lfRCMBoxInfoText.innerHTML = infoText;
 
         let lfRCMBoxChoices = document.getElementById("lfRCMBoxChoices");

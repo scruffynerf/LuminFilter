@@ -1,4 +1,10 @@
 # Latest changes
+## v3.3.1
+- Fixed: on a torrent's details page, right-clicking a tag could open the menu several times, because the page re-bound the handler every time the taglist changed. Each element is now bound once
+- Fixed: title phrases are now matched against the title text rather than its HTML, so phrases containing `&` or `<` match, and the `(phrase)` badges added to a title can no longer trigger further matches
+- Right-clicking a title passes the plain title (without badges) to the menu
+- Title badges now use a standard `span` instead of a made-up `color` element
+- Added an automated test suite (`npm install`, then `npm test`) that runs the real script against simulated pages
 ## v3.3.0
 - **Arrow-key navigation is now built in**, so the separate GlobalArrowKeyNavigation script is no longer needed (uninstall it). Left/Right arrows page through results on filter pages as before; the new option *Use the arrow keys on every other page of the site too* (Settings, off by default) extends this site-wide
 - Arrow keys are ignored while typing in a field and when Ctrl/Alt/Shift/Meta is held (so Alt+Left still goes Back)

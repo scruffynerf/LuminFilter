@@ -148,6 +148,8 @@ Older changelogs can be found at [NSE's site](https://github.com/ceodoe/noshitem
 - **xrt141**: conditional rules engine, semicolon-delimited lists, compact header buttons, "if all rows are hidden, go to next page", and Open all via the userscript manager
 
 # Contribute
+There is a small automated test suite: run `npm install` once, then `npm test`.
+
 You can also contribute by reporting bugs, submitting feature requests, pull requests, or just generally using LuminFilter to its fullest. Thanks for considering it.
 
 # [Latest changes](https://github.com/scruffynerf/LuminFilter/blob/master/CHANGELOG.md)

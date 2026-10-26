@@ -1,0 +1,7 @@
+{
+  "name": "luminfilter",
+  "private": true,
+  "description": "Test harness for the LuminFilter userscript (the script itself has no build step)",
+  "scripts": { "test": "node test/run.js" },
+  "devDependencies": { "jsdom": "^24.0.0" }
+}
