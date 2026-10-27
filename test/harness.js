@@ -25,7 +25,8 @@ function boot(opts) {
     w.GM_setValue = (k, v) => { if (v === undefined || typeof v === "function" || v instanceof w.Set || v instanceof w.Map) bad.push(k); raw[k] = JSON.stringify(v); };
     w.GM_listValues = () => Object.keys(raw);
     w.GM_deleteValue = k => { delete raw[k]; };
-    w.GM_addStyle = () => {};
+    const styles = [];
+    w.GM_addStyle = css => { styles.push(css); };
     if (o.withOpenInTab) w.GM_openInTab = (u, opt) => { opened.push([u, opt]); };
     w.open = u => { popups.push(u); };
     w.alert = () => {};
@@ -33,7 +34,7 @@ function boot(opts) {
     const names = [...new Set(DEFAULT_EXPOSE.concat(o.expose))];
     const expose = `window.__lf={${names.map(n => `get ${n}(){return ${n};}`).join(",")}};\n`;
     try { w.eval(SCRIPT.replace(END_MARKER, expose + END_MARKER)); } catch (e) { errors.push(String((e && e.stack) || e)); }
-    return { w, raw, errors, opened, popups, bad, dom, doc: w.document };
+    return { w, raw, errors, opened, popups, bad, styles, dom, doc: w.document };
 }
 
 // A minimal torrent listing page body around the given row html

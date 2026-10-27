@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.5.2
+// @version      3.5.3
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -1511,7 +1511,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                             <input type="text" class="lfInput" id="lfCustomThemeHighCol" value='${lfCustomTheme.highlightColor}' />
                         </p>
                         <p>
-                            Hidden torrent background color:<br />
+                            Hidden torrent outline color:<br />
                             <input type="text" class="lfInput" id="lfCustomThemeHiddenBgCol" value='${lfCustomTheme.hiddenBackgroundColor}' />
                         </p>
 
@@ -2039,7 +2039,6 @@ function lfFilterRow(row, i) {
         row.setAttribute("isLFHidden", "0");
     } else if(currentHidden === true) {
         if(russianRouletteBulletInChamber == false) {
-            row.style.backgroundColor = themes[lfSelectedTheme].hiddenBackgroundColor;
             row.classList.add("hidden");
             row.setAttribute("isLFHidden", "1");
 
@@ -2733,7 +2732,6 @@ function lfIndividualRows(icon) {
 function lfApplyRowHidden(row, hide) {
     row.classList.toggle("hidden");
     row.setAttribute("isLFHidden", hide ? "1" : "0");
-    row.style.backgroundColor = hide ? themes[lfSelectedTheme].hiddenBackgroundColor : null;
 }
 
 function lfIconForRow(row, clickedIcon) {
@@ -2785,7 +2783,6 @@ function lfClearIndividualRows(icon) {
             // A row that was only whitelisted is already visible; one that was blacklisted comes back
             if(!was.whitelist) { row.classList.toggle("hidden"); }
             row.setAttribute("isLFHidden", "0");
-            row.style.backgroundColor = null;
             lfSetIndividualState(lfIconForRow(row, icon), "Untouched");
         }
 
@@ -3945,6 +3942,13 @@ a.lfLink, a.lfLink:visited {
 
 .lfNiceButton, .lfRCMButton {
     padding-top: 3px;
+}
+
+/* Rows hidden by LuminFilter are only ever visible in the "show hidden" view. Mark them with an outline drawn
+   inside the row (no background change, so text and tags stay readable and the layout doesn't shift). */
+tr[isLFHidden="1"] {
+    outline: 2px solid ${themes[lfSelectedTheme].hiddenBackgroundColor};
+    outline-offset: -2px;
 }
 
 .lfDisabledButton {

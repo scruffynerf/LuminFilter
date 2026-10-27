@@ -1,4 +1,7 @@
 # Latest changes
+## v3.5.3
+- When you toggle hidden torrents, those rows are now marked with an outline drawn inside the row instead of a coloured background, so their text and tags stay readable. The colour is still the theme's "hidden torrent" colour (Options > Settings > Theme, custom theme)
+
 ## v3.5.2
 - Backfill results now loads 2 pages per click by default (was 5); change it in Settings
 

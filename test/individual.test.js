@@ -50,6 +50,13 @@ assert.deepStrictEqual(state(icons(t)[2]), ["Untouched"]);
 assert.deepStrictEqual(stored(t, "lfIndividualUploadHidingBlacklist"), []);
 assert.strictEqual(header(t).match(/Toggle (\d+) hidden/)[1], "1");   // header count tracks the hidden rows (just D)
 
+// Hidden rows are marked with an inside outline (a stylesheet rule), never an inline background colour
+assert.ok(/tr\[isLFHidden="1"\]\s*\{[^}]*outline:\s*2px solid[^}]*outline-offset:\s*-2px/.test(t.styles.join("\n")));
+assert.ok([...t.doc.querySelectorAll("tr.torrent")].every(r => r.style.backgroundColor === ""));
+click(t, icons(t)[0]);
+assert.ok([...t.doc.querySelectorAll("tr.torrent")].every(r => r.style.backgroundColor === ""));
+assert.strictEqual(t.doc.querySelector("tr.torrent").getAttribute("isLFHidden"), "1");
+
 // Stored individual lists are applied on load
 t = boot({ body, seed: { ...SEED, lfIndividualUploadHidingBlacklist: ["33"], lfIndividualUploadHidingWhitelist: ["22"], lfTaglist: "bad" } });
 assert.deepStrictEqual(hidden(t), [false, false, true, true]);
