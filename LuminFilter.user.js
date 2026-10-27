@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.2
+// @version      3.6.3
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -588,16 +588,22 @@ for(const [setting, binding] of Object.entries(lfListBindings)) {
 
 // Lookup structures for the per-row matching, built once instead of per row.
 // Tags are compared as written; uploaders and phrases case-insensitively.
+// Tags are compared by a normalized key: sites differ in capitalization ("VR") and
+// some write spaces where others use dots ("porn music video" / "porn.music.video")
+function lfTagKey(tag) {
+    return String(tag).trim().toLowerCase().replace(/\s+/g, ".");
+}
+
 let lfMatch = null;
 function lfBuildMatchers() {
     const phrases = list => list.map(entry => entry.trim().toLowerCase()).filter(entry => entry !== "");
     lfMatch = {
-        tagBlacklist: new Set(lfBlacklistTags),
-        tagHardPass: new Set(lfHardPassTags),
-        tagWhitelist: new Set(lfWhitelistTags),
+        tagBlacklist: new Set(lfBlacklistTags.map(lfTagKey)),
+        tagHardPass: new Set(lfHardPassTags.map(lfTagKey)),
+        tagWhitelist: new Set(lfWhitelistTags.map(lfTagKey)),
         uploaderBlacklist: new Set(phrases(lfBlacklistUploaders)),
         uploaderWhitelist: new Set(phrases(lfWhitelistUploaders)),
-        tagHighlight: new Set(lfHighlightTags),
+        tagHighlight: new Set(lfHighlightTags.map(lfTagKey)),
         uploaderHighlight: new Set(phrases(lfHighlightUploaders)),
         titleHighlight: phrases(lfHighlightTitlePhrases),
         titleBlacklist: phrases(lfBlacklistTitlePhrases),
@@ -2106,7 +2112,7 @@ function lfFilterRow(row, i) {
     // For every tag in the current torrent
     let tagList = tagElement.querySelectorAll("a");
     for(let k = 0; k < tagList.length; k++) {
-        const tagName = tagList[k].innerHTML;
+        const tagName = lfTagKey(tagList[k].innerHTML);
 
         if(lfMatch.tagHighlight.has(tagName)) {
             tagList[k].classList.add("lfHighlightedTag");
@@ -2486,17 +2492,17 @@ function recolorTags() {
 
     if(tagList !== null && tagList !== undefined) {
         for(let i = 0; i < tagList.length; i++) {
-            tagList[i].classList.toggle("lfHighlightedTag", lfMatch.tagHighlight.has(tagList[i].innerHTML.trim()));
+            tagList[i].classList.toggle("lfHighlightedTag", lfMatch.tagHighlight.has(lfTagKey(tagList[i].innerHTML)));
 
-            if(lfBlacklistTags.includes(tagList[i].innerHTML.trim())) {
+            if(lfMatch.tagBlacklist.has(lfTagKey(tagList[i].innerHTML))) {
                 tagList[i].classList.remove("lfHardPassTag");
                 tagList[i].classList.remove("lfWhitelistedTag");
                 tagList[i].classList.add("lfHiddenTag");
-            } else if(lfHardPassEnabled && lfHardPassTags.includes(tagList[i].innerHTML.trim())) {
+            } else if(lfHardPassEnabled && lfMatch.tagHardPass.has(lfTagKey(tagList[i].innerHTML))) {
                 tagList[i].classList.remove("lfHiddenTag");
                 tagList[i].classList.remove("lfWhitelistedTag");
                 tagList[i].classList.add("lfHardPassTag");
-            } else if(lfWhitelistTags.includes(tagList[i].innerHTML.trim())) {
+            } else if(lfMatch.tagWhitelist.has(lfTagKey(tagList[i].innerHTML))) {
                 tagList[i].classList.remove("lfHiddenTag");
                 tagList[i].classList.remove("lfHardPassTag");
                 tagList[i].classList.add("lfWhitelistedTag");
@@ -3242,6 +3248,7 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY, linkHref) {
 
     let lfRCMBoxInfoText = box.querySelector("#lfRCMBoxInfoText");
     if(boxType == "tag") {
+        elementValue = lfTagKey(elementValue);
         let infoText = `<b>Tag:</b> <span class="lfMonospace" id="lfRCMBoxTag">${elementValue}</span><br /><br />`;
 
         let currTagBlacklist = lfScopeFilter(lfParseList(document.getElementById("lfBlacklistTaglistArea").value));

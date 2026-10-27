@@ -1,4 +1,7 @@
 # Latest changes
+## v3.6.3
+- Tags are now matched without regard to capitalization, so blacklisting `vr` also catches a tag the site writes as `VR` (this affects filtering, colouring and the right-click menu)
+
 ## v3.6.2
 - The right-click management menu now includes the original link ("Open link"). It is a normal link, so you can click it or right-click it for your browser's own "open in new tab/window", copy address, etc.
 
