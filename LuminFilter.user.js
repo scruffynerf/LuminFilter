@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.5.4
+// @version      3.6.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -285,6 +285,11 @@ let [lfBlacklistTitleList, lfBlacklistTitlePhrases] = lfInitList("lfBlacklistTit
 let [lfHardPassTitleList, lfHardPassTitlePhrases] = lfInitList("lfHardPassTitles", "this is a title phrase;this is another title phrase", true);
 let [lfWhitelistTitleList, lfWhitelistTitlePhrases] = lfInitList("lfWhitelistTitles", "this is a title phrase;this is another title phrase", true);
 
+// Highlight lists: neither hide nor show anything, they only colour the match
+let [lfHighlightTaglist, lfHighlightTags] = lfInitList("lfHighlightTags", "");
+let [lfHighlightTitleList, lfHighlightTitlePhrases] = lfInitList("lfHighlightTitles", "", true);
+let [lfHighlightUploadersList, lfHighlightUploaders] = lfInitList("lfHighlightUploaders", "");
+
 let [lfBlacklistUploadersList, lfBlacklistUploaders] = lfInitList("lfUploaders", "PutUserNamesHere;SeparatedBySemicolons;NoNewlines");
 let [lfWhitelistUploadersList, lfWhitelistUploaders] = lfInitList("lfWhitelistUploaders", "PutUserNamesHere;SeparatedBySemicolons;NoNewlines");
 
@@ -555,7 +560,10 @@ const lfRawLists = {
     lfHardPassTitles: lfHardPassTitlePhrases,
     lfWhitelistTitles: lfWhitelistTitlePhrases,
     lfUploaders: lfBlacklistUploaders,
-    lfWhitelistUploaders: lfWhitelistUploaders
+    lfWhitelistUploaders: lfWhitelistUploaders,
+    lfHighlightTags: lfHighlightTags,
+    lfHighlightTitles: lfHighlightTitlePhrases,
+    lfHighlightUploaders: lfHighlightUploaders
 };
 
 // Each stored list: the setting it lives in, and how to refresh the cached copies of it
@@ -568,7 +576,10 @@ const lfListBindings = {
     lfHardPassTitles: { setText: v => { lfHardPassTitleList = v; }, setItems: v => { lfHardPassTitlePhrases = v; } },
     lfWhitelistTitles: { setText: v => { lfWhitelistTitleList = v; }, setItems: v => { lfWhitelistTitlePhrases = v; } },
     lfUploaders: { setText: v => { lfBlacklistUploadersList = v; }, setItems: v => { lfBlacklistUploaders = v; } },
-    lfWhitelistUploaders: { setText: v => { lfWhitelistUploadersList = v; }, setItems: v => { lfWhitelistUploaders = v; } }
+    lfWhitelistUploaders: { setText: v => { lfWhitelistUploadersList = v; }, setItems: v => { lfWhitelistUploaders = v; } },
+    lfHighlightTags: { setText: v => { lfHighlightTaglist = v; }, setItems: v => { lfHighlightTags = v; } },
+    lfHighlightTitles: { setText: v => { lfHighlightTitleList = v; }, setItems: v => { lfHighlightTitlePhrases = v; } },
+    lfHighlightUploaders: { setText: v => { lfHighlightUploadersList = v; }, setItems: v => { lfHighlightUploaders = v; } }
 };
 
 for(const [setting, binding] of Object.entries(lfListBindings)) {
@@ -586,6 +597,9 @@ function lfBuildMatchers() {
         tagWhitelist: new Set(lfWhitelistTags),
         uploaderBlacklist: new Set(phrases(lfBlacklistUploaders)),
         uploaderWhitelist: new Set(phrases(lfWhitelistUploaders)),
+        tagHighlight: new Set(lfHighlightTags),
+        uploaderHighlight: new Set(phrases(lfHighlightUploaders)),
+        titleHighlight: phrases(lfHighlightTitlePhrases),
         titleBlacklist: phrases(lfBlacklistTitlePhrases),
         titleHardPass: phrases(lfHardPassTitlePhrases),
         titleWhitelist: phrases(lfWhitelistTitlePhrases)
@@ -676,6 +690,32 @@ let lfBlacklistColor = GM_getValue("lfBlacklistColor", "#F00");
 let lfHardPassColor = GM_getValue("lfHardPassColor", "#A00");
 let lfWhitelistColor = GM_getValue("lfWhitelistColor", "#0F0");
 
+// Highlight colors for the list categories, with optional backgrounds ("" = no background)
+let lfHighlightColor = GM_getValue("lfHighlightColor", "#ffe600");
+let lfHighlightBgColor = GM_getValue("lfHighlightBgColor", "#000000");
+let lfBlacklistBgColor = GM_getValue("lfBlacklistBgColor", "");
+let lfHardPassBgColor = GM_getValue("lfHardPassBgColor", "");
+let lfWhitelistBgColor = GM_getValue("lfWhitelistBgColor", "");
+
+// One-click colour sets for the boxes in Settings. The color-blind set uses the Okabe-Ito palette, which stays
+// distinguishable with the common kinds of red-green color blindness: vermillion, blue, reddish purple, yellow.
+const LF_COLOR_PRESETS = {
+    default: {
+        label: "Default (red / green / yellow)",
+        lfBlacklistColor: "#F00", lfHardPassColor: "#A00", lfWhitelistColor: "#0F0",
+        lfHighlightColor: "#ffe600", lfHighlightBgColor: "#000000",
+        lfBlacklistBgColor: "", lfHardPassBgColor: "", lfWhitelistBgColor: "",
+        lfHiddenOutlineColor: "#e53935"
+    },
+    colorblind: {
+        label: "Color-blind safe (orange / blue / pink / yellow)",
+        lfBlacklistColor: "#D55E00", lfHardPassColor: "#CC79A7", lfWhitelistColor: "#56B4E9",
+        lfHighlightColor: "#F0E442", lfHighlightBgColor: "#000000",
+        lfBlacklistBgColor: "", lfHardPassBgColor: "", lfWhitelistBgColor: "",
+        lfHiddenOutlineColor: "#D55E00"
+    }
+};
+
 // Outline for rows hidden by LuminFilter (visible in the "show hidden" view)
 const LF_OUTLINE_STYLES = ["solid", "dashed", "dotted", "double"];
 const LF_DEFAULT_OUTLINE_COLOR = "#e53935";
@@ -683,6 +723,16 @@ function lfSafeColor(value) {
     value = String(value).trim();
     return value !== "" && /^[#a-z0-9(),.%\s-]+$/i.test(value) ? value : LF_DEFAULT_OUTLINE_COLOR;
 }
+// Like lfSafeColor, but an empty value is allowed (it means "no background")
+function lfSafeOptionalColor(value) {
+    value = String(value).trim();
+    return value === "" ? "" : lfSafeColor(value);
+}
+lfHighlightColor = lfSafeColor(lfHighlightColor);
+lfHighlightBgColor = lfSafeOptionalColor(lfHighlightBgColor);
+lfBlacklistBgColor = lfSafeOptionalColor(lfBlacklistBgColor);
+lfHardPassBgColor = lfSafeOptionalColor(lfHardPassBgColor);
+lfWhitelistBgColor = lfSafeOptionalColor(lfWhitelistBgColor);
 function lfClampOutlineWidth(value) {
     value = Math.floor(Number(value));
     return isNaN(value) || value < 1 ? 2 : Math.min(value, 8);
@@ -1038,6 +1088,26 @@ htmlContent.innerHTML = `
                 </div>
                 <textarea class="lfTextArea" id="lfWhitelistTaglistArea" rows=4>${lfWhitelistTaglist}</textarea>
             </div>
+            <div class="lfFieldDiv">
+                <span class="lfImageButton lfListHeader" id="lfTagHighlightHeader"><span class="lfEmoji">🔆</span> Tag highlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfHLEToggler">[?]</sup><br />
+                <div id="lfHLE" class="lfExplanationBox hidden">
+                    <div class="lfExplanationNode">
+                        <b>TL;DR</b>: <i>Just color these tags, don't hide or show anything</i>
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Tags listed here are shown in the highlight color wherever they appear. Highlighting never hides or shows anything by itself, and
+                        blacklist, Hard Pass and whitelist colors win if the same entry is on one of those lists too.
+                        Colors can be changed in Settings (there is a color-blind safe preset there).
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Example:<br />
+                        <pre>favorite.director;rare.edition</pre>
+                    </div>
+                </div>
+                <textarea class="lfTextArea" id="lfHighlightTaglistArea" rows=3>${lfHighlightTaglist}</textarea>
+            </div>
         </section>
 
         <section id="lfContent2">
@@ -1100,6 +1170,26 @@ htmlContent.innerHTML = `
                 </div>
                 <textarea class="lfTextArea" id="lfWhitelistTitleListArea" rows=4>${lfWhitelistTitleList}</textarea>
             </div>
+            <div class="lfFieldDiv">
+                <span class="lfImageButton lfListHeader" id="lfTitleHighlightHeader"><span class="lfEmoji">🔆</span> Title highlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfTitleHLEToggler">[?]</sup><br />
+                <div id="lfTitleHLE" class="lfExplanationBox hidden">
+                    <div class="lfExplanationNode">
+                        <b>TL;DR</b>: <i>Just color titles containing these phrases</i>
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        A title containing any of these phrases is shown in the highlight color. Character case does not matter. Highlighting never hides or shows anything by itself, and
+                        blacklist, Hard Pass and whitelist colors win if the same entry is on one of those lists too.
+                        Colors can be changed in Settings (there is a color-blind safe preset there).
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Example:<br />
+                        <pre>director's cut;special edition</pre>
+                    </div>
+                </div>
+                <textarea class="lfTextArea" id="lfHighlightTitleListArea" rows=3>${lfHighlightTitleList}</textarea>
+            </div>
         </section>
 
         <section id="lfContent3">
@@ -1153,6 +1243,26 @@ htmlContent.innerHTML = `
                     </div>
                 </div>
                 <textarea class="lfTextArea" id="lfWhitelistUploadersArea" rows=4>${lfWhitelistUploadersList}</textarea>
+            </div>
+            <div class="lfFieldDiv">
+                <span class="lfImageButton lfListHeader" id="lfUploaderHighlightHeader"><span class="lfEmoji">🔆</span> Uploader highlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfUHLEToggler">[?]</sup><br />
+                <div id="lfUHLE" class="lfExplanationBox hidden">
+                    <div class="lfExplanationNode">
+                        <b>TL;DR</b>: <i>Just color these uploaders' names</i>
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Uploader names listed here are shown in the highlight color. Character case does not matter. Highlighting never hides or shows anything by itself, and
+                        blacklist, Hard Pass and whitelist colors win if the same entry is on one of those lists too.
+                        Colors can be changed in Settings (there is a color-blind safe preset there).
+                    </div>
+
+                    <div class="lfExplanationNode">
+                        Example:<br />
+                        <pre>FavoriteUploader;AnotherOne</pre>
+                    </div>
+                </div>
+                <textarea class="lfTextArea" id="lfHighlightUploadersArea" rows=3>${lfHighlightUploadersList}</textarea>
             </div>
         </section>
 
@@ -1474,6 +1584,27 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <input type="text" class="lfInput" value="${lfWhitelistColor}" id="lfWhitelistColor" />
                     <br /><br />
 
+                    Highlight color for highlighted elements (the Highlight lists): <br />
+                    <input type="text" class="lfInput" value="${lfHighlightColor}" id="lfHighlightColor" />
+                    <br /><br />
+
+                    Background behind highlighted elements: <br />
+                    <input type="text" class="lfInput" value="${lfHighlightBgColor}" id="lfHighlightBgColor" /> <span class="lfExplanationSpan">(Helps light colors like yellow stay readable. Leave empty for none.)</span>
+                    <br /><br />
+
+                    Optional backgrounds behind blacklisted, Hard Pass and whitelisted elements: <br />
+                    <input type="text" class="lfInput" style="width: 90px;" value="${lfBlacklistBgColor}" id="lfBlacklistBgColor" title="Blacklist background" />
+                    <input type="text" class="lfInput" style="width: 90px;" value="${lfHardPassBgColor}" id="lfHardPassBgColor" title="Hard Pass background" />
+                    <input type="text" class="lfInput" style="width: 90px;" value="${lfWhitelistBgColor}" id="lfWhitelistBgColor" title="Whitelist background" /> <span class="lfExplanationSpan">(Empty = none)</span>
+                    <br /><br />
+
+                    Color set: <br />
+                    <select class="lfInput" id="lfColorPreset">
+                        <option value="">Fill in the boxes above and the outline below with...</option>
+                        ${Object.entries(LF_COLOR_PRESETS).map(([key, preset]) => `<option value="${key}">${preset.label}</option>`).join("")}
+                    </select> <span class="lfExplanationSpan">(Only fills in the boxes. Click [Save] to keep it.)</span>
+                    <br /><br />
+
                     Outline for hidden torrents: <br />
                     <input type="text" class="lfInput" style="width: 90px;" value="${lfHiddenOutlineColor}" id="lfHiddenOutlineColor" title="Color" />
                     <input type="text" class="lfInput" style="width: 40px;" value="${lfHiddenOutlineWidth}" id="lfHiddenOutlineWidth" title="Thickness in pixels (1-8)" /> px
@@ -1613,6 +1744,8 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     Number of whitelisted tags: <span class="lfWhitelistedTag">${lfWhitelistTags.length}</span><br />
                     Number of whitelisted title phrases: <span class="lfWhitelistedTag">${lfWhitelistTitlePhrases.length}</span><br />
                     Number of whitelisted uploaders: <span class="lfWhitelistedTag">${lfWhitelistUploaders.length}</span><br />
+                    <br />
+                    Number of highlighted tags, title phrases and uploaders: <span class="lfHighlightedTag">${lfHighlightTags.length} / ${lfHighlightTitlePhrases.length} / ${lfHighlightUploaders.length}</span><br />
                     ${lfIndividualUploadHidingEnabled ? `Number of individually whitelisted torrents: <span class="lfWhitelistedTag">${lfIndividualUploadHidingWhitelist.length}</span><br />` : ""}
                 </p>
 
@@ -1917,6 +2050,10 @@ function lfFilterRow(row, i) {
         } else { // Not an anon upload
             let uploader = uploaderElement.innerHTML.trim().toLowerCase();
 
+            if(lfMatch.uploaderHighlight.has(uploader)) {
+                uploaderElement.classList.add("lfHighlightedUploader");
+            }
+
             // Usernames are unique, so a blacklisted uploader needs no whitelist check
             if(lfMatch.uploaderBlacklist.has(uploader)) {
                 currentHidden = true;
@@ -1977,10 +2114,18 @@ function lfFilterRow(row, i) {
         titleElement.insertAdjacentHTML("beforeend", titleBadges);
     }
 
+    if(lfMatch.titleHighlight.some(phrase => torrentTitle.includes(phrase))) {
+        titleElement.classList.add("lfHighlightedTitle");
+    }
+
     // For every tag in the current torrent
     let tagList = tagElement.querySelectorAll("a");
     for(let k = 0; k < tagList.length; k++) {
         const tagName = tagList[k].innerHTML;
+
+        if(lfMatch.tagHighlight.has(tagName)) {
+            tagList[k].classList.add("lfHighlightedTag");
+        }
 
         if(lfHardPassEnabled && lfMatch.tagHardPass.has(tagName)) {
             currentHidden = true;
@@ -2121,6 +2266,11 @@ if(torrents) {
                         break;
                     }
                 }
+
+                if(lfMatch.uploaderHighlight.has(uploader)) {
+                    uploaderElement.classList.add("lfHighlightedUploader");
+                    if(uploaderElement2) { uploaderElement2.classList.add("lfHighlightedUploader"); }
+                }
             }
         }
 
@@ -2135,6 +2285,11 @@ if(torrents) {
 
         // Match against the title as the site rendered it (before any badges are appended below)
         const torrentTitle = titleElement.textContent.trim().toLowerCase();
+
+        if(lfMatch.titleHighlight.some(phrase => torrentTitle.includes(phrase))) {
+            titleElement.classList.add("lfHighlightedTitle");
+            titleElement2.classList.add("lfHighlightedTitle");
+        }
 
         // Scan title for lfBlacklistTitlePhrases
         // ...For every blacklisted phrase:
@@ -2346,6 +2501,8 @@ function recolorTags() {
 
     if(tagList !== null && tagList !== undefined) {
         for(let i = 0; i < tagList.length; i++) {
+            tagList[i].classList.toggle("lfHighlightedTag", lfMatch.tagHighlight.has(tagList[i].innerHTML.trim()));
+
             if(lfBlacklistTags.includes(tagList[i].innerHTML.trim())) {
                 tagList[i].classList.remove("lfHardPassTag");
                 tagList[i].classList.remove("lfWhitelistedTag");
@@ -2380,6 +2537,8 @@ function recolorUploaders() {
 
     if(uploaderElements) {
         for(let i = 0; i < uploaderElements.length; i++) {
+            uploaderElements[i].classList.toggle("lfHighlightedUploader", lfMatch.uploaderHighlight.has(uploaderElements[i].innerHTML.trim().toLowerCase()));
+
             if(lfBlacklistUploaders.includes(uploaderElements[i].innerHTML.trim())) {
                 uploaderElements[i].classList.remove("lfWhitelistedUploader");
                 uploaderElements[i].classList.add("lfHiddenUploader");
@@ -2465,6 +2624,16 @@ document.getElementById("lfCheckRightClickManagementEnabled").onclick = function
     } else {
         document.getElementById("lfRCMCustomizationDiv").classList.add("hidden");
     }
+};
+
+document.getElementById("lfColorPreset").onchange = function() {
+    const preset = LF_COLOR_PRESETS[this.value];
+    if(!preset) { return; }
+
+    for(const [id, value] of Object.entries(preset)) {
+        if(id !== "label") { document.getElementById(id).value = value; }
+    }
+    this.value = "";
 };
 
 document.getElementById("lfThemeDropdown").onchange = function() {
@@ -2554,7 +2723,7 @@ if(lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled && !lfUnfilteredP
     }
 }
 
-let lfTextAreas = new Array("lfBlacklistTaglistArea", "lfHardPassTaglistArea", "lfWhitelistTaglistArea","lfBlacklistTitleListArea","lfHardPassTitleListArea","lfWhitelistTitleListArea","lfBlacklistUploadersArea","lfWhitelistUploadersArea","lfConditionalRulesArea");
+let lfTextAreas = new Array("lfBlacklistTaglistArea", "lfHardPassTaglistArea", "lfWhitelistTaglistArea","lfBlacklistTitleListArea","lfHardPassTitleListArea","lfWhitelistTitleListArea","lfBlacklistUploadersArea","lfWhitelistUploadersArea","lfHighlightTaglistArea","lfHighlightTitleListArea","lfHighlightUploadersArea","lfConditionalRulesArea");
 
 for(let textAreaCounter = 0; textAreaCounter < lfTextAreas.length; textAreaCounter++) {
     document.getElementById(lfTextAreas[textAreaCounter]).addEventListener("keydown", function(event) {
@@ -2565,7 +2734,7 @@ for(let textAreaCounter = 0; textAreaCounter < lfTextAreas.length; textAreaCount
      }, false);
 }
 
-let explanationTogglers = new Array("lfBLE", "lfHPE", "lfHPTE", "lfWLE","lfTitleBLE", "lfTitleWLE", "lfUBLE", "lfUWLE", "lfCRE");
+let explanationTogglers = new Array("lfBLE", "lfHPE", "lfHPTE", "lfWLE","lfTitleBLE", "lfTitleWLE", "lfUBLE", "lfUWLE", "lfHLE", "lfTitleHLE", "lfUHLE", "lfCRE");
 
 for(let i = 0; i < explanationTogglers.length; i++) {
     document.getElementById(explanationTogglers[i] + "Toggler").onclick = function() {
@@ -3359,8 +3528,45 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
         };
     }
 
+    lfAddHighlightButton(boxType, elementValue);
+
     box.classList.remove("hidden");
     return false;
+}
+
+// Extra right-click menu button shared by tags, uploaders and titles: add to / remove from the Highlight list
+function lfAddHighlightButton(boxType, elementValue) {
+    const area = {tag: "lfHighlightTaglistArea", uploader: "lfHighlightUploadersArea", title: "lfHighlightTitleListArea"}[boxType];
+    const choices = document.getElementById("lfRCMBoxChoices");
+    if(!area || !choices) { return; }
+
+    const plus = lfEmojiEnabled ? "🔆" : "+";
+    let inList = false;
+    let label;
+
+    if(boxType === "title") {
+        label = `${plus} Add phrase(s) to title highlight`;
+    } else {
+        const value = elementValue.trim().toLowerCase();
+        inList = lfScopeFilter(lfParseList(document.getElementById(area).value)).includes(value);
+        label = inList ? `${lfEmojiEnabled ? "➖" : "-"} Remove from highlight` : `${plus} Highlight this ${boxType}`;
+    }
+
+    choices.insertAdjacentHTML("beforeend", `<br /><br /><span class="lfRCMButton" id="lfRCMBoxHLToggle">${label}</span>`);
+
+    document.getElementById("lfRCMBoxHLToggle").onclick = function() {
+        if(boxType === "title") {
+            addItemToList(area, area, document.getElementById("lfRCMTitlePhraseText").value);
+        } else {
+            const value = elementValue.trim().toLowerCase();
+            if(inList) { removeItemFromList(area, value); } else { addItemToList(area, area, value); }
+        }
+
+        saveData();
+        recolorTags();
+        recolorUploaders();
+        closeRCMBox();
+    };
 }
 
 function closeRCMBox() {
@@ -3370,7 +3576,8 @@ function closeRCMBox() {
 function lfIsPhraseList(tagListAreaName) {
     return tagListAreaName == "lfWhitelistTitleListArea"
         || tagListAreaName == "lfBlacklistTitleListArea"
-        || tagListAreaName == "lfHardPassTitleListArea";
+        || tagListAreaName == "lfHardPassTitleListArea"
+        || tagListAreaName == "lfHighlightTitleListArea";
 }
 
 function removeItemFromList(tagListAreaName, tagName) {
@@ -3541,7 +3748,10 @@ function saveData() {
         lfHardPassTitles: "lfHardPassTitleListArea",
         lfWhitelistTitles: "lfWhitelistTitleListArea",
         lfUploaders: "lfBlacklistUploadersArea",
-        lfWhitelistUploaders: "lfWhitelistUploadersArea"
+        lfWhitelistUploaders: "lfWhitelistUploadersArea",
+        lfHighlightTags: "lfHighlightTaglistArea",
+        lfHighlightTitles: "lfHighlightTitleListArea",
+        lfHighlightUploaders: "lfHighlightUploadersArea"
     };
 
     // Convert to lower case, trim whitespace, remove duplicates and save filter lists
@@ -3681,6 +3891,15 @@ function saveData() {
     GM_setValue("lfHiddenOutlineStyle", lfHiddenOutlineStyle);
     document.getElementById("lfHiddenOutlineColor").value = lfHiddenOutlineColor;
     document.getElementById("lfHiddenOutlineWidth").value = lfHiddenOutlineWidth;
+
+    lfHighlightColor = lfSafeColor(document.getElementById("lfHighlightColor").value);
+    GM_setValue("lfHighlightColor", lfHighlightColor);
+    document.getElementById("lfHighlightColor").value = lfHighlightColor;
+    for(const id of ["lfHighlightBgColor", "lfBlacklistBgColor", "lfHardPassBgColor", "lfWhitelistBgColor"]) {
+        const cleaned = lfSafeOptionalColor(document.getElementById(id).value);
+        GM_setValue(id, cleaned);
+        document.getElementById(id).value = cleaned;
+    }
 
     GM_setValue("lfBlacklistColor", document.getElementById("lfBlacklistColor").value);
     GM_setValue("lfHardPassColor", document.getElementById("lfHardPassColor").value);
@@ -3925,13 +4144,26 @@ a.lfLink, a.lfLink:visited {
     margin-bottom: 10px;
 }
 
+/* Highlight lists: blacklist/Hard Pass/whitelist styling wins when an entry is on one of those too */
+.lfHighlightedUploader:not(.lfHiddenUploader):not(.lfWhitelistedUploader),
+.lfHighlightedTag:not(.lfHiddenTag):not(.lfHardPassTag):not(.lfWhitelistedTag),
+.lfHighlightedTitle {
+    color: ${lfHighlightColor} !important;
+    ${lfHighlightBgColor ? `background-color: ${lfHighlightBgColor} !important;` : ""}
+    font-weight: bold !important;
+    border-radius: 3px;
+    padding: 0 3px;
+}
+
 .lfHiddenUploader, .lfHiddenTag, .lfHiddenTitle, .lfBlacklistIdentifier {
     color: ${lfBlacklistColor} !important;
+    ${lfBlacklistBgColor ? `background-color: ${lfBlacklistBgColor} !important;` : ""}
     font-weight: bold !important;
 }
 
 .lfWhitelistedUploader, .lfWhitelistedTag, .lfWhitelistedTitle, .lfWhitelistIdentifier {
     color: ${lfWhitelistColor} !important;
+    ${lfWhitelistBgColor ? `background-color: ${lfWhitelistBgColor} !important;` : ""}
     font-weight: bold !important;
 }
 
@@ -3941,6 +4173,7 @@ a.lfLink, a.lfLink:visited {
 
 .lfHardPassTag, .lfHardPassTitle {
     color: ${lfHardPassColor} !important;
+    ${lfHardPassBgColor ? `background-color: ${lfHardPassBgColor} !important;` : ""}
     font-weight: bold !important;
 }
 

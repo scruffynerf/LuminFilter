@@ -1,4 +1,10 @@
 # Latest changes
+## v3.6.0
+- New Highlight lists for tags, title phrases and uploaders: they neither hide nor show anything, they only recolour the match (yellow on black by default). Blacklist, Hard Pass and whitelist colours win when an item is in several lists
+- Right-click menus have a new "Highlight / Remove from highlight" button
+- Optional background colours for highlight, blacklist, Hard Pass and whitelist text, so light colours stay readable on light pages
+- New colour preset dropdown (Settings > colours): "Default (red / green / yellow)" or "Color-blind safe" (Okabe-Ito orange / blue / pink / yellow). Picking one fills the boxes; press Save to keep it
+
 ## v3.5.4
 - The outline for hidden torrents is now its own setting (Options > Settings, under the highlight colours): colour, thickness (1-8 px) and line style (solid, dashed, dotted, double), instead of being tied to the Custom theme
 - The default outline is now a red, to match the blacklist highlight (it used to be a light purple)
