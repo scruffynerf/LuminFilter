@@ -51,7 +51,7 @@ assert.deepStrictEqual(stored(t, "lfIndividualUploadHidingBlacklist"), []);
 assert.strictEqual(header(t).match(/Toggle (\d+) hidden/)[1], "1");   // header count tracks the hidden rows (just D)
 
 // Hidden rows are marked with an inside outline (a stylesheet rule), never an inline background colour
-assert.ok(/tr\[isLFHidden="1"\]\s*\{[^}]*outline:\s*2px solid[^}]*outline-offset:\s*-2px/.test(t.styles.join("\n")));
+assert.ok(/tr\[isLFHidden="1"\]\s*\{[^}]*outline:\s*2px solid #e53935[^}]*outline-offset:\s*-2px/.test(t.styles.join("\n")));   // reddish default
 assert.ok([...t.doc.querySelectorAll("tr.torrent")].every(r => r.style.backgroundColor === ""));
 click(t, icons(t)[0]);
 assert.ok([...t.doc.querySelectorAll("tr.torrent")].every(r => r.style.backgroundColor === ""));
@@ -103,5 +103,22 @@ else {
     rclick(t, dIcon()); assert.deepStrictEqual(state(dIcon()), ["Untouched"]); assert.deepStrictEqual(stored(t, "lfIndividualUploadHidingBlacklist"), []);
 }
 assert.deepStrictEqual(t.errors, []);
+
+// The outline is configurable: saved values reach the stylesheet, bad values fall back safely
+t = boot({ body, seed: { ...SEED, lfHiddenOutlineColor: "rgb(0, 128, 0)", lfHiddenOutlineWidth: 4, lfHiddenOutlineStyle: "dashed" } });
+assert.ok(/outline:\s*4px dashed rgb\(0, 128, 0\)[^}]*outline-offset:\s*-4px/.test(t.styles.join("\n")));
+assert.strictEqual(t.doc.getElementById("lfHiddenOutlineStyle").value, "dashed");
+t.doc.getElementById("lfHiddenOutlineColor").value = "red;} body{display:none";
+t.doc.getElementById("lfHiddenOutlineWidth").value = "99";
+t.doc.getElementById("lfHiddenOutlineStyle").value = "ridge";
+t.w.__lf.saveData();
+assert.strictEqual(JSON.parse(t.raw.lfHiddenOutlineColor), "#e53935");   // unsafe colour rejected
+assert.strictEqual(JSON.parse(t.raw.lfHiddenOutlineWidth), 8);            // clamped
+assert.strictEqual(JSON.parse(t.raw.lfHiddenOutlineStyle), "solid");      // unknown style rejected
+t.doc.getElementById("lfHiddenOutlineColor").value = "#00AAFF";
+t.doc.getElementById("lfHiddenOutlineWidth").value = "3";
+t.doc.getElementById("lfHiddenOutlineStyle").value = "dotted";
+t.w.__lf.saveData();
+assert.deepStrictEqual([t.raw.lfHiddenOutlineColor, t.raw.lfHiddenOutlineWidth, t.raw.lfHiddenOutlineStyle].map(x => JSON.parse(x)), ["#00AAFF", 3, "dotted"]);
 
 console.log("individual.test OK");

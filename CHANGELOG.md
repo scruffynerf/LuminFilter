@@ -1,4 +1,9 @@
 # Latest changes
+## v3.5.4
+- The outline for hidden torrents is now its own setting (Options > Settings, under the highlight colours): colour, thickness (1-8 px) and line style (solid, dashed, dotted, double), instead of being tied to the Custom theme
+- The default outline is now a red, to match the blacklist highlight (it used to be a light purple)
+- The old "Hidden torrent outline color" box in the Custom theme is gone
+
 ## v3.5.3
 - When you toggle hidden torrents, those rows are now marked with an outline drawn inside the row instead of a coloured background, so their text and tags stay readable. The colour is still the theme's "hidden torrent" colour (Options > Settings > Theme, custom theme)
 

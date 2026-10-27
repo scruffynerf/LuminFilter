@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.5.3
+// @version      3.5.4
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -676,6 +676,22 @@ let lfBlacklistColor = GM_getValue("lfBlacklistColor", "#F00");
 let lfHardPassColor = GM_getValue("lfHardPassColor", "#A00");
 let lfWhitelistColor = GM_getValue("lfWhitelistColor", "#0F0");
 
+// Outline for rows hidden by LuminFilter (visible in the "show hidden" view)
+const LF_OUTLINE_STYLES = ["solid", "dashed", "dotted", "double"];
+const LF_DEFAULT_OUTLINE_COLOR = "#e53935";
+function lfSafeColor(value) {
+    value = String(value).trim();
+    return value !== "" && /^[#a-z0-9(),.%\s-]+$/i.test(value) ? value : LF_DEFAULT_OUTLINE_COLOR;
+}
+function lfClampOutlineWidth(value) {
+    value = Math.floor(Number(value));
+    return isNaN(value) || value < 1 ? 2 : Math.min(value, 8);
+}
+let lfHiddenOutlineColor = lfSafeColor(GM_getValue("lfHiddenOutlineColor", LF_DEFAULT_OUTLINE_COLOR));
+let lfHiddenOutlineWidth = lfClampOutlineWidth(GM_getValue("lfHiddenOutlineWidth", 2));
+let lfHiddenOutlineStyle = GM_getValue("lfHiddenOutlineStyle", "solid");
+if(!LF_OUTLINE_STYLES.includes(lfHiddenOutlineStyle)) { lfHiddenOutlineStyle = "solid"; }
+
 // Custom timeout
 let lfTimeout = GM_getValue("lfTimeout", 1500);
 
@@ -686,13 +702,8 @@ let lfCustomTheme = GM_getValue("lfCustomTheme", {
     backgroundHighlightColor: "#cfe7ff",
     foregroundColor: "#000",
     accentColor: "#0af",
-    highlightColor: "#0071b0",
-    hiddenBackgroundColor: "#aaf"
+    highlightColor: "#0071b0"
 });
-
-if(lfCustomTheme.hiddenBackgroundColor == undefined) {
-    lfCustomTheme.hiddenBackgroundColor = "#aaf";
-}
 
 let themes = {
     lfThemeDefault:
@@ -701,8 +712,7 @@ let themes = {
             backgroundHighlightColor: "#cfe7ff",
             foregroundColor: "#000",
             accentColor: "#0af",
-            highlightColor: "#0071b0",
-            hiddenBackgroundColor: "#aaf"
+            highlightColor: "#0071b0"
         },
     lfThemeLegacy:
         {
@@ -710,8 +720,7 @@ let themes = {
             backgroundHighlightColor: "#44f",
             foregroundColor: "#fff",
             accentColor: "#ddd",
-            highlightColor: "#fff",
-            hiddenBackgroundColor: "#aaf"
+            highlightColor: "#fff"
         },
     lfThemeEdgy:
         {
@@ -719,8 +728,7 @@ let themes = {
             backgroundHighlightColor: "#333",
             foregroundColor: "#f00",
             accentColor: "#f22",
-            highlightColor: "#f22",
-            hiddenBackgroundColor: "#aaf"
+            highlightColor: "#f22"
         },
     lfThemeBaked:
         {
@@ -728,8 +736,7 @@ let themes = {
             backgroundHighlightColor: "#087300",
             foregroundColor: "#0a8700",
             accentColor: "#b669ff",
-            highlightColor: "#b669ff",
-            hiddenBackgroundColor: "#aaf"
+            highlightColor: "#b669ff"
         },
     lfThemeDarkPurple:
         {
@@ -737,8 +744,7 @@ let themes = {
             backgroundHighlightColor: "#495057",
             foregroundColor: "#ffffff",
             accentColor: "#7b68ee",
-            highlightColor: "#7b68ee",
-            hiddenBackgroundColor: "#aaf"
+            highlightColor: "#7b68ee"
         },
     lfThemeCustom:
         {
@@ -746,8 +752,7 @@ let themes = {
             backgroundHighlightColor: lfCustomTheme.backgroundHighlightColor,
             foregroundColor: lfCustomTheme.foregroundColor,
             accentColor: lfCustomTheme.accentColor,
-            highlightColor: lfCustomTheme.highlightColor,
-            hiddenBackgroundColor: lfCustomTheme.hiddenBackgroundColor
+            highlightColor: lfCustomTheme.highlightColor
         }
 };
 
@@ -1469,6 +1474,15 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <input type="text" class="lfInput" value="${lfWhitelistColor}" id="lfWhitelistColor" />
                     <br /><br />
 
+                    Outline for hidden torrents: <br />
+                    <input type="text" class="lfInput" style="width: 90px;" value="${lfHiddenOutlineColor}" id="lfHiddenOutlineColor" title="Color" />
+                    <input type="text" class="lfInput" style="width: 40px;" value="${lfHiddenOutlineWidth}" id="lfHiddenOutlineWidth" title="Thickness in pixels (1-8)" /> px
+                    <select class="lfInput" id="lfHiddenOutlineStyle" title="Line style">
+                        ${LF_OUTLINE_STYLES.map(style => `<option value="${style}"${style === lfHiddenOutlineStyle ? " selected" : ""}>${style}</option>`).join("")}
+                    </select>
+                    <span class="lfExplanationSpan">(Color, thickness 1-8, style. Drawn inside the row when you toggle hidden torrents.)</span>
+                    <br /><br />
+
                     Timeout for timed functions (milliseconds): <br />
                     <input type="text" class="lfInput" style="width: 50px;" value="${lfTimeout}" id="lfTimeout" /> <span class="lfExplanationSpan">(Used for GCD support and computing storage size)</span>
                     <br /><br />
@@ -1509,10 +1523,6 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                         <p>
                             Highlight color:<br />
                             <input type="text" class="lfInput" id="lfCustomThemeHighCol" value='${lfCustomTheme.highlightColor}' />
-                        </p>
-                        <p>
-                            Hidden torrent outline color:<br />
-                            <input type="text" class="lfInput" id="lfCustomThemeHiddenBgCol" value='${lfCustomTheme.hiddenBackgroundColor}' />
                         </p>
 
                         <p>Remember to click the [Save] button to save your changes!</p>
@@ -3655,13 +3665,22 @@ function saveData() {
         backgroundHighlightColor: document.getElementById("lfCustomThemeBgHighCol").value,
         foregroundColor: document.getElementById("lfCustomThemeForeCol").value,
         accentColor: document.getElementById("lfCustomThemeAccentCol").value,
-        highlightColor: document.getElementById("lfCustomThemeHighCol").value,
-        hiddenBackgroundColor: document.getElementById("lfCustomThemeHiddenBgCol").value
+        highlightColor: document.getElementById("lfCustomThemeHighCol").value
     };
     GM_setValue("lfCustomTheme", lfCustomTheme);
 
     GM_setValue("lfUIFont", document.getElementById("lfUIFont").value);
     GM_setValue("lfTextAreaFont", document.getElementById("lfTextAreaFont").value);
+
+    lfHiddenOutlineColor = lfSafeColor(document.getElementById("lfHiddenOutlineColor").value);
+    lfHiddenOutlineWidth = lfClampOutlineWidth(document.getElementById("lfHiddenOutlineWidth").value);
+    lfHiddenOutlineStyle = document.getElementById("lfHiddenOutlineStyle").value;
+    if(!LF_OUTLINE_STYLES.includes(lfHiddenOutlineStyle)) { lfHiddenOutlineStyle = "solid"; }
+    GM_setValue("lfHiddenOutlineColor", lfHiddenOutlineColor);
+    GM_setValue("lfHiddenOutlineWidth", lfHiddenOutlineWidth);
+    GM_setValue("lfHiddenOutlineStyle", lfHiddenOutlineStyle);
+    document.getElementById("lfHiddenOutlineColor").value = lfHiddenOutlineColor;
+    document.getElementById("lfHiddenOutlineWidth").value = lfHiddenOutlineWidth;
 
     GM_setValue("lfBlacklistColor", document.getElementById("lfBlacklistColor").value);
     GM_setValue("lfHardPassColor", document.getElementById("lfHardPassColor").value);
@@ -3947,8 +3966,8 @@ a.lfLink, a.lfLink:visited {
 /* Rows hidden by LuminFilter are only ever visible in the "show hidden" view. Mark them with an outline drawn
    inside the row (no background change, so text and tags stay readable and the layout doesn't shift). */
 tr[isLFHidden="1"] {
-    outline: 2px solid ${themes[lfSelectedTheme].hiddenBackgroundColor};
-    outline-offset: -2px;
+    outline: ${lfHiddenOutlineWidth}px ${lfHiddenOutlineStyle} ${lfHiddenOutlineColor};
+    outline-offset: -${lfHiddenOutlineWidth}px;
 }
 
 .lfDisabledButton {
