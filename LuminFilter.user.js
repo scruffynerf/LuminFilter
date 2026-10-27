@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.1
+// @version      3.6.2
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -3219,11 +3219,11 @@ function lfBindContextMenu(element, kind) {
             titleClone.querySelectorAll(".lfHiddenTitle, .lfHardPassTitle, .lfWhitelistedTitle").forEach(function(badge) { badge.remove(); });
             value = titleClone.textContent.trim();
         }
-        showRCMBox(kind, value, event.pageX, event.pageY);
+        showRCMBox(kind, value, event.pageX, event.pageY, this.getAttribute("href"));
     }, false);
 }
 
-function showRCMBox(boxType, elementValue, mouseX, mouseY) {
+function showRCMBox(boxType, elementValue, mouseX, mouseY, linkHref) {
     let box = document.getElementById("lfRCMBox");
     let x = mouseX;
     let y = mouseY;
@@ -3514,9 +3514,33 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY) {
     }
 
     lfAddHighlightButton(boxType, elementValue);
+    lfAddRCMLink(linkHref);
 
     box.classList.remove("hidden");
     return false;
+}
+
+// Our menu replaces the browser's, so offer the original link here as a real link: right-click it for
+// "open in new tab/window", copy address, etc., or just click it
+function lfAddRCMLink(href) {
+    const old = document.getElementById("lfRCMBoxLinkRow");
+    if(old) { old.remove(); }
+    const choices = document.getElementById("lfRCMBoxChoices");
+    if(!href || !choices) { return; }
+
+    const row = document.createElement("div");
+    row.id = "lfRCMBoxLinkRow";
+    row.style.marginTop = "10px";
+    const link = document.createElement("a");
+    link.className = "lfLink";
+    link.id = "lfRCMBoxLink";
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = (lfEmojiEnabled ? "🔗 " : "") + "Open link (right-click for browser options)";
+    link.addEventListener("click", function() { closeRCMBox(); });
+    row.appendChild(link);
+    choices.appendChild(row);
 }
 
 // Extra right-click menu button shared by tags, uploaders and titles: add to / remove from the Highlight list

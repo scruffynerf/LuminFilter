@@ -1,4 +1,7 @@
 # Latest changes
+## v3.6.2
+- The right-click management menu now includes the original link ("Open link"). It is a normal link, so you can click it or right-click it for your browser's own "open in new tab/window", copy address, etc.
+
 ## v3.6.1
 - The "Highlight" lists are now called Spotlight lists (tags, title phrases, uploaders), so they are no longer confused with the highlighting every list does. Your saved lists carry over unchanged
 - Settings: the list colors are now one small table (Blacklist / Hard Pass / Whitelist / Spotlight, with text and background columns) instead of a long run of boxes

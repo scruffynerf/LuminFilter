@@ -30,6 +30,8 @@ assert.deepStrictEqual(t.bad, []);
 // Right-click menu: every kind opens and its buttons work
 const tag = t.doc.querySelector("div.tags a");
 tag.dispatchEvent(new t.w.MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+const rcmLink = t.doc.getElementById("lfRCMBoxLink");   // the menu keeps a real link for the browser's own context menu
+assert.ok(rcmLink && rcmLink.getAttribute("href") === tag.getAttribute("href") && rcmLink.target === "_blank");
 for (const b of t.doc.querySelectorAll("#lfRCMBoxChoices .lfRCMButton")) click(b);
 for (const [sel, kind] of [[".lfUploaderElement", "uploader"], [".lfTitleElement", "title"]]) {
     const el = t.doc.querySelector(sel);
