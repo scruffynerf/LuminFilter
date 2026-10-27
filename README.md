@@ -42,7 +42,7 @@ PASS: $TA{trailer} OR $TA{sample}
 - Hide uploads based on whether you've grabbed/downloaded it before, or if you're actively leeching/seeding it
 - Click a button to see the list of hidden torrents
 - Highlighting based on your lists, so you'll always know why a torrent was hidden or whitelisted
-- Highlight lists (tags, title phrases, uploaders) that only recolour matches, with optional background colours and a color-blind safe preset
+- Spotlight lists (tags, title phrases, uploaders) that only recolour matches, with optional background colours and a color-blind safe preset
 - Neat toggle button and GUI to manage lists and settings
 - Conditional rules: combine tags, titles, uploaders and sites with AND, OR and NOT
 - Optionally jump to the next page when everything on a page is hidden

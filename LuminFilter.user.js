@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.0
+// @version      3.6.1
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -1089,14 +1089,14 @@ htmlContent.innerHTML = `
                 <textarea class="lfTextArea" id="lfWhitelistTaglistArea" rows=4>${lfWhitelistTaglist}</textarea>
             </div>
             <div class="lfFieldDiv">
-                <span class="lfImageButton lfListHeader" id="lfTagHighlightHeader"><span class="lfEmoji">🔆</span> Tag highlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfHLEToggler">[?]</sup><br />
+                <span class="lfImageButton lfListHeader" id="lfTagHighlightHeader"><span class="lfEmoji">🔆</span> Tag spotlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfHLEToggler">[?]</sup><br />
                 <div id="lfHLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
-                        <b>TL;DR</b>: <i>Just color these tags, don't hide or show anything</i>
+                        <b>TL;DR</b>: <i>Just color these tags ("notice me!"), don't hide or show anything</i>
                     </div>
 
                     <div class="lfExplanationNode">
-                        Tags listed here are shown in the highlight color wherever they appear. Highlighting never hides or shows anything by itself, and
+                        Tags listed here are shown in the spotlight color wherever they appear. Spotlighting never hides or shows anything by itself, and
                         blacklist, Hard Pass and whitelist colors win if the same entry is on one of those lists too.
                         Colors can be changed in Settings (there is a color-blind safe preset there).
                     </div>
@@ -1171,14 +1171,14 @@ htmlContent.innerHTML = `
                 <textarea class="lfTextArea" id="lfWhitelistTitleListArea" rows=4>${lfWhitelistTitleList}</textarea>
             </div>
             <div class="lfFieldDiv">
-                <span class="lfImageButton lfListHeader" id="lfTitleHighlightHeader"><span class="lfEmoji">🔆</span> Title highlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfTitleHLEToggler">[?]</sup><br />
+                <span class="lfImageButton lfListHeader" id="lfTitleHighlightHeader"><span class="lfEmoji">🔆</span> Title spotlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfTitleHLEToggler">[?]</sup><br />
                 <div id="lfTitleHLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
                         <b>TL;DR</b>: <i>Just color titles containing these phrases</i>
                     </div>
 
                     <div class="lfExplanationNode">
-                        A title containing any of these phrases is shown in the highlight color. Character case does not matter. Highlighting never hides or shows anything by itself, and
+                        A title containing any of these phrases is shown in the spotlight color. Character case does not matter. Spotlighting never hides or shows anything by itself, and
                         blacklist, Hard Pass and whitelist colors win if the same entry is on one of those lists too.
                         Colors can be changed in Settings (there is a color-blind safe preset there).
                     </div>
@@ -1245,14 +1245,14 @@ htmlContent.innerHTML = `
                 <textarea class="lfTextArea" id="lfWhitelistUploadersArea" rows=4>${lfWhitelistUploadersList}</textarea>
             </div>
             <div class="lfFieldDiv">
-                <span class="lfImageButton lfListHeader" id="lfUploaderHighlightHeader"><span class="lfEmoji">🔆</span> Uploader highlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfUHLEToggler">[?]</sup><br />
+                <span class="lfImageButton lfListHeader" id="lfUploaderHighlightHeader"><span class="lfEmoji">🔆</span> Uploader spotlight <small>(semicolon-separated)</small></span><sup class="lfExplanationToggler" id="lfUHLEToggler">[?]</sup><br />
                 <div id="lfUHLE" class="lfExplanationBox hidden">
                     <div class="lfExplanationNode">
                         <b>TL;DR</b>: <i>Just color these uploaders' names</i>
                     </div>
 
                     <div class="lfExplanationNode">
-                        Uploader names listed here are shown in the highlight color. Character case does not matter. Highlighting never hides or shows anything by itself, and
+                        Uploader names listed here are shown in the spotlight color. Character case does not matter. Spotlighting never hides or shows anything by itself, and
                         blacklist, Hard Pass and whitelist colors win if the same entry is on one of those lists too.
                         Colors can be changed in Settings (there is a color-blind safe preset there).
                     </div>
@@ -1572,30 +1572,15 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <br /><br />
 
 
-                    Highlight color for blacklisted elements: <br />
-                    <input type="text" class="lfInput" value="${lfBlacklistColor}" id="lfBlacklistColor" /> <span class="lfExplanationSpan">(You can use any <a class="lfLink" href="https://developer.mozilla.org/en-US/docs/Web/CSS/color_value" target="_blank"><b><u>CSS color notation</u></b></a> here)</span>
-                    <br /><br />
-
-                    Highlight color for Hard Pass tags: <br />
-                    <input type="text" class="lfInput" value="${lfHardPassColor}" id="lfHardPassColor" />
-                    <br /><br />
-
-                    Highlight color for whitelisted elements: <br />
-                    <input type="text" class="lfInput" value="${lfWhitelistColor}" id="lfWhitelistColor" />
-                    <br /><br />
-
-                    Highlight color for highlighted elements (the Highlight lists): <br />
-                    <input type="text" class="lfInput" value="${lfHighlightColor}" id="lfHighlightColor" />
-                    <br /><br />
-
-                    Background behind highlighted elements: <br />
-                    <input type="text" class="lfInput" value="${lfHighlightBgColor}" id="lfHighlightBgColor" /> <span class="lfExplanationSpan">(Helps light colors like yellow stay readable. Leave empty for none.)</span>
-                    <br /><br />
-
-                    Optional backgrounds behind blacklisted, Hard Pass and whitelisted elements: <br />
-                    <input type="text" class="lfInput" style="width: 90px;" value="${lfBlacklistBgColor}" id="lfBlacklistBgColor" title="Blacklist background" />
-                    <input type="text" class="lfInput" style="width: 90px;" value="${lfHardPassBgColor}" id="lfHardPassBgColor" title="Hard Pass background" />
-                    <input type="text" class="lfInput" style="width: 90px;" value="${lfWhitelistBgColor}" id="lfWhitelistBgColor" title="Whitelist background" /> <span class="lfExplanationSpan">(Empty = none)</span>
+                    Colors for your lists (<a class="lfLink" href="https://developer.mozilla.org/en-US/docs/Web/CSS/color_value" target="_blank"><b><u>any CSS color notation</u></b></a>; leave a background empty for none): <br />
+                    <table class="lfColorTable">
+                        <tr><th></th><th>Text</th><th>Background</th></tr>
+                        <tr><td>Blacklist</td><td><input type="text" class="lfInput" style="width: 90px;" value="${lfBlacklistColor}" id="lfBlacklistColor" /></td><td><input type="text" class="lfInput" style="width: 90px;" value="${lfBlacklistBgColor}" id="lfBlacklistBgColor" /></td></tr>
+                        <tr><td>Hard Pass</td><td><input type="text" class="lfInput" style="width: 90px;" value="${lfHardPassColor}" id="lfHardPassColor" /></td><td><input type="text" class="lfInput" style="width: 90px;" value="${lfHardPassBgColor}" id="lfHardPassBgColor" /></td></tr>
+                        <tr><td>Whitelist</td><td><input type="text" class="lfInput" style="width: 90px;" value="${lfWhitelistColor}" id="lfWhitelistColor" /></td><td><input type="text" class="lfInput" style="width: 90px;" value="${lfWhitelistBgColor}" id="lfWhitelistBgColor" /></td></tr>
+                        <tr><td>Spotlight</td><td><input type="text" class="lfInput" style="width: 90px;" value="${lfHighlightColor}" id="lfHighlightColor" /></td><td><input type="text" class="lfInput" style="width: 90px;" value="${lfHighlightBgColor}" id="lfHighlightBgColor" /></td></tr>
+                    </table>
+                    <span class="lfExplanationSpan">(A background helps light colors like yellow stay readable.)</span>
                     <br /><br />
 
                     Color set: <br />
@@ -1745,7 +1730,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     Number of whitelisted title phrases: <span class="lfWhitelistedTag">${lfWhitelistTitlePhrases.length}</span><br />
                     Number of whitelisted uploaders: <span class="lfWhitelistedTag">${lfWhitelistUploaders.length}</span><br />
                     <br />
-                    Number of highlighted tags, title phrases and uploaders: <span class="lfHighlightedTag">${lfHighlightTags.length} / ${lfHighlightTitlePhrases.length} / ${lfHighlightUploaders.length}</span><br />
+                    Number of spotlighted tags, title phrases and uploaders: <span class="lfHighlightedTag">${lfHighlightTags.length} / ${lfHighlightTitlePhrases.length} / ${lfHighlightUploaders.length}</span><br />
                     ${lfIndividualUploadHidingEnabled ? `Number of individually whitelisted torrents: <span class="lfWhitelistedTag">${lfIndividualUploadHidingWhitelist.length}</span><br />` : ""}
                 </p>
 
@@ -3545,11 +3530,11 @@ function lfAddHighlightButton(boxType, elementValue) {
     let label;
 
     if(boxType === "title") {
-        label = `${plus} Add phrase(s) to title highlight`;
+        label = `${plus} Add phrase(s) to title spotlight`;
     } else {
         const value = elementValue.trim().toLowerCase();
         inList = lfScopeFilter(lfParseList(document.getElementById(area).value)).includes(value);
-        label = inList ? `${lfEmojiEnabled ? "➖" : "-"} Remove from highlight` : `${plus} Highlight this ${boxType}`;
+        label = inList ? `${lfEmojiEnabled ? "➖" : "-"} Remove from spotlight` : `${plus} Spotlight this ${boxType}`;
     }
 
     choices.insertAdjacentHTML("beforeend", `<br /><br /><span class="lfRCMButton" id="lfRCMBoxHLToggle">${label}</span>`);
@@ -4144,7 +4129,8 @@ a.lfLink, a.lfLink:visited {
     margin-bottom: 10px;
 }
 
-/* Highlight lists: blacklist/Hard Pass/whitelist styling wins when an entry is on one of those too */
+.lfColorTable td, .lfColorTable th { padding: 2px 8px 2px 0; text-align: left; }
+/* Spotlight lists (internally "highlight"): blacklist/Hard Pass/whitelist styling wins when an entry is on one of those too */
 .lfHighlightedUploader:not(.lfHiddenUploader):not(.lfWhitelistedUploader),
 .lfHighlightedTag:not(.lfHiddenTag):not(.lfHardPassTag):not(.lfWhitelistedTag),
 .lfHighlightedTitle {

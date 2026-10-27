@@ -1,6 +1,11 @@
 # Latest changes
+## v3.6.1
+- The "Highlight" lists are now called Spotlight lists (tags, title phrases, uploaders), so they are no longer confused with the highlighting every list does. Your saved lists carry over unchanged
+- Settings: the list colors are now one small table (Blacklist / Hard Pass / Whitelist / Spotlight, with text and background columns) instead of a long run of boxes
+- Right-click menus say "Spotlight this tag/uploader" and "Remove from spotlight"
+
 ## v3.6.0
-- New Highlight lists for tags, title phrases and uploaders: they neither hide nor show anything, they only recolour the match (yellow on black by default). Blacklist, Hard Pass and whitelist colours win when an item is in several lists
+- New Spotlight lists for tags, title phrases and uploaders: they neither hide nor show anything, they only recolour the match (yellow on black by default). Blacklist, Hard Pass and whitelist colours win when an item is in several lists
 - Right-click menus have a new "Highlight / Remove from highlight" button
 - Optional background colours for highlight, blacklist, Hard Pass and whitelist text, so light colours stay readable on light pages
 - New colour preset dropdown (Settings > colours): "Default (red / green / yellow)" or "Color-blind safe" (Okabe-Ito orange / blue / pink / yellow). Picking one fills the boxes; press Save to keep it
