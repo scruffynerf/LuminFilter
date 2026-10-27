@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.3
+// @version      3.6.4
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -4160,7 +4160,18 @@ a.lfLink, a.lfLink:visited {
     margin-bottom: 10px;
 }
 
-.lfColorTable td, .lfColorTable th { padding: 2px 8px 2px 0; text-align: left; }
+.lfColorTable, .lfColorTable tr, .lfColorTable td, .lfColorTable th {
+    background: none !important;
+    color: ${themes[lfSelectedTheme].foregroundColor} !important;
+    border: none !important;
+    padding: 2px 8px 2px 0;
+    text-align: left;
+}
+.lfColorTable input.lfInput {
+    color: ${themes[lfSelectedTheme].foregroundColor} !important;
+    background-color: ${themes[lfSelectedTheme].backgroundColor} !important;
+    border: 1px solid ${themes[lfSelectedTheme].accentColor} !important;
+}
 /* Spotlight lists (internally "highlight"): blacklist/Hard Pass/whitelist styling wins when an entry is on one of those too */
 .lfHighlightedUploader:not(.lfHiddenUploader):not(.lfWhitelistedUploader),
 .lfHighlightedTag:not(.lfHiddenTag):not(.lfHardPassTag):not(.lfWhitelistedTag),

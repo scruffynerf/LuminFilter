@@ -1,4 +1,7 @@
 # Latest changes
+## v3.6.4
+- Fixed the colour table in Settings being unreadable (dark text on a dark background) on sites with their own table styling
+
 ## v3.6.3
 - Tags are now matched without regard to capitalization, so blacklisting `vr` also catches a tag the site writes as `VR` (this affects filtering, colouring and the right-click menu)
 
