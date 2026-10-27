@@ -1,4 +1,7 @@
 # Latest changes
+## v3.6.5
+- HappyFappy: "Hide bookmarked uploads" works again (the site's bookmark icon markup had changed)
+
 ## v3.6.4
 - Fixed the colour table in Settings being unreadable (dark text on a dark background) on sites with their own table styling
 

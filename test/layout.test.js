@@ -31,3 +31,12 @@ const t = boot({ host: "kufirc.com", seed: { lfHideSeedingEnabled: true, lfUpdat
 assert.deepStrictEqual(t.errors, []);
 assert.deepStrictEqual([...t.doc.querySelectorAll("tr.torrent")].map(r => r.classList.contains("hidden")), [true, false, false]);
 console.log("layout.test OK");
+
+// HappyFappy: a row bookmarked with the current <i class="bookmarked"> icon is hidden by "Hide bookmarked uploads"
+{
+    const hf = rowHtml("none", true).replace("<td>", `<td><a href="/torrents.php?id=7">hf</a><div class="tags"><a href="/torrents.php?taglist=x">x</a></div>`);
+    const plain = rowHtml("none", false).replace("<td>", `<td><a href="/torrents.php?id=8">hf2</a><div class="tags"><a href="/torrents.php?taglist=x">x</a></div>`);
+    const h = boot({ host: "www.happyfappy.net", seed: { lfHideBookmarkedEnabled: true, lfUpdateToastsEnabled: false }, body: listing(hf, plain) });
+    assert.deepStrictEqual(h.errors, []);
+    assert.deepStrictEqual([...h.doc.querySelectorAll("tr.torrent")].map(r => r.classList.contains("hidden")), [true, false]);
+}

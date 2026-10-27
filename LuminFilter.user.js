@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.4
+// @version      3.6.5
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -169,7 +169,8 @@ const lfSiteProfiles = {
         layout: lfLayout({
             statusIcon: "td > span.torrent_icon_container > a > span",
             statusClasses: { snatched: "icon_disk_snatched", seeding: "icon_disk_seed", grabbed: "icon_disk_grabbed", leeching: "icon_disk_leech" },
-            bookmarked: "td > span.torrent_icon_container > span.icon_bookmarked"
+            // Bookmarked rows carry <i class="... bookmarked ..."> (current markup); the older span is kept as a fallback
+            bookmarked: "i.bookmarked, td > span.torrent_icon_container > span.icon_bookmarked"
         })
     },
     kufirc: {
