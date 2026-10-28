@@ -46,7 +46,7 @@ PASS: $TA{trailer} OR $TA{sample}
 - Neat toggle button and GUI to manage lists and settings
 - Conditional rules: combine tags, titles, uploaders and sites with AND, OR and NOT
 - Optionally jump to the next page when everything on a page is hidden
-- "Backfill results": load the next few result pages onto the current one, filtered like the rest
+- "Backfill": load the next few result pages onto the current one, filtered like the rest
 - Left/Right arrow-key paging, optionally on every page of the site
 - Actively updated
 - Lots more!
@@ -75,7 +75,7 @@ Make sure the checkbox for "Hide tags in lists" is **unchecked** in your user se
 1. Click the question mark next to each list for an explanation of what it does
 1. Click "Save" then "Reload page" to save your options and reload the page
 
-Torrents matching your blacklist rules will now be hidden, and can be shown by clicking the "Toggle X hidden torrents" button. Torrents matching whitelist rules will be shown regardless of blacklist rules. To hide individual torrents, click the eye icon that appears next to it. For more options and information, be sure to check out the settings page within LuminFilter!
+Torrents matching your blacklist rules will now be hidden, and can be shown by clicking the "N hidden" toggle button in the header. Torrents matching whitelist rules will be shown regardless of blacklist rules. To hide individual torrents, click the eye icon that appears next to it. For more options and information, be sure to check out the settings page within LuminFilter!
 
 You can also check out the latest changes in the [changelog](https://github.com/scruffynerf/LuminFilter/blob/master/CHANGELOG.md).
 
@@ -147,7 +147,7 @@ Older changelogs can be found at [NSE's site](https://github.com/ceodoe/noshitem
 
 # Credits
 - **ceodoe**: author of [NSE](https://github.com/ceodoe/noshitempornium), which LuminFilter is forked from
-- **mchamster**: the "Backfill results" button. Thank you for the code!
+- **mchamster**: the "Backfill" button. Thank you for the code!
 - **xrt141**: conditional rules engine, semicolon-delimited lists, compact header buttons, "if all rows are hidden, go to next page", and Open all via the userscript manager
 
 # Contribute

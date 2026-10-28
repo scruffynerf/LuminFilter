@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.5
+// @version      3.6.6
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -986,7 +986,7 @@ htmlContent.innerHTML = `
 <div id="lfOuter" class="lfOuterDiv">
     <div id="lfHeader">
         <span id="lfHeaderText">LuminFilter</span>
-        <span id="lfToggleOptionsNode" class="lfNiceButton">Options</span><span id="lfDynamicRefreshNode" class="lfNiceButton hidden" title="Reload the page to apply your changes" onclick="javascript:location.reload();">🗘</span>
+        <span id="lfToggleOptionsNode" class="lfNiceButton"><span class="lfEmoji">⚙️</span> Options</span><span id="lfDynamicRefreshNode" class="lfNiceButton hidden" title="Reload the page to apply your changes" onclick="javascript:location.reload();">🗘</span>
         ${!lfUnfilteredPages.includes(currentPage) && lfOpenAllButtonEnabled ? `
             <span class="lfNiceButton" id="lfOpenAllButton" title="Open all unfiltered results in new tabs">
                 <span class="lfEmoji">📂</span> Open all
@@ -994,7 +994,7 @@ htmlContent.innerHTML = `
         ` : ''}
         ${currentPage == "Torrents" && lfBackfillButtonEnabled ? `
             <span class="lfNiceButton" id="lfBackfillButton" title="Load the following result pages onto this one and filter them">
-                <span class="lfEmoji">🔁</span> Backfill results
+                <span class="lfEmoji">🔁</span> Backfill
             </span><span id="lfBackfillStatus" class="lfExplanationSpan"></span>
         ` : ''}
         ${!lfUnfilteredPages.includes(currentPage) && lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled ? `
@@ -1561,7 +1561,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
 
                     <input type="checkbox" id="lfCheckBackfillButton"${lfBackfillButtonEnabled ? ' checked' : ''} />
                     <label for="lfCheckBackfillButton" class="lfSettingsCheckbox">
-                        <span class="lfEmoji">🔁</span> Show the "Backfill results" button on torrent lists
+                        <span class="lfEmoji">🔁</span> Show the "Backfill" button on torrent lists
                     </label><br />
                     <span class="lfExplanationSpan lfESOffset">(Loads the next result pages onto the current one and filters them like the rest)</span><br />
 
@@ -1718,7 +1718,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
             <section id="lfSettingsContent4">
                 <h3 class="lfH3">About</h3>
                 <p>
-                    Copyright &copy; 2015-2026 ceodoe, xrt141, mchamster, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141, and the Backfill results button is based on code by mchamster, thank you! Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
+                    Copyright &copy; 2015-2026 ceodoe, xrt141, mchamster, scruffynerf. LuminFilter v${GM_info.script.version} is a fork of <a class="lfLink" href="https://github.com/ceodoe/noshitempornium" target="_blank">NSE</a>, originally made with ${lfEmojiEnabled ? '💕' : 'love'} by ceodoe. The conditional rules engine and several interface improvements are by xrt141, and the Backfill button is based on code by mchamster, thank you! Its code is licensed under the <a class="lfLink" href="https://www.gnu.org/licenses/gpl-3.0.txt" target="_blank">GNU General Public License v3.0</a>.
                 </p>
 
                 <h3 class="lfH3">Statistics</h3>
@@ -3006,16 +3006,19 @@ function adjustHiddenHeaderCount(value) {
         currNum = Number(currNum) + value;
     }
 
+    // With hidden torrents the label is a toggle button; without any it is just the plain title
+    headerNode.classList.toggle("lfNiceButton", currNum !== 0);
+
     if(currNum === 0) {
         headerNode.innerHTML = "LuminFilter";
+        headerNode.removeAttribute("title");
 
         if(value !== 0) {
             toggleTorrents();
         }
-    } else if(currNum === 1) {
-        headerNode.innerHTML = "Toggle 1 hidden torrent";
     } else {
-        headerNode.innerHTML = "Toggle " + currNum + " hidden torrents";
+        headerNode.innerHTML = `${lfEmojiEnabled ? '<span class="lfEmoji">🙈</span> ' : ""}${currNum} hidden`;
+        headerNode.title = "Show or hide the " + currNum + " hidden torrent" + (currNum == 1 ? "" : "s");
     }
 }
 
@@ -4105,13 +4108,19 @@ a.lfLink, a.lfLink:visited {
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 5px;
 }
 
 #lfHeader .lfNiceButton {
     margin: 0;
     white-space: nowrap;
+    font-size: 14px;
+}
+
+#lfHeaderText, #lfBackfillStatus {
+    white-space: nowrap;
+    font-size: 16px;
 }
 
 .lfExplanationToggler, ${currentPage !== "My uploaded" ? "#lfHeaderText," : ""} .lfNiceButton, .lfRCMButton, .lfLabel:hover {

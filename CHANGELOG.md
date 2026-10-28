@@ -1,4 +1,9 @@
 # Latest changes
+## v3.6.6
+- The LuminFilter header now stays on one line
+- "Toggle N hidden torrents" is now a real toggle button ("🙈 N hidden"); with nothing hidden it shows just the "LuminFilter" title
+- Options has a gear icon, and "Backfill results" is now just "Backfill"
+
 ## v3.6.5
 - HappyFappy: "Hide bookmarked uploads" works again (the site's bookmark icon markup had changed)
 
