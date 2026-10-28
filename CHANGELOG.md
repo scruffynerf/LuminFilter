@@ -1,4 +1,7 @@
 # Latest changes
+## v3.6.7
+- The hidden-torrents toggle now shows its state: "🙈 N hidden" normally, and a filled button reading "👁 N shown" while the hidden torrents are being shown
+
 ## v3.6.6
 - The LuminFilter header now stays on one line
 - "Toggle N hidden torrents" is now a real toggle button ("🙈 N hidden"); with nothing hidden it shows just the "LuminFilter" title

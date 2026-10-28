@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.6
+// @version      3.6.7
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -2971,6 +2971,9 @@ function lfClearIndividualRows(icon) {
 function toggleTorrents() {
     lfHiddenTorrentsToggled = !lfHiddenTorrentsToggled;
 
+    const shownCount = headerNode.innerHTML.match(/([0-9]+)/);
+    lfRenderHeaderToggle(shownCount ? Number(shownCount[0]) : 0);
+
     for(let k = 0; k < torrents.length; k++) {
         torrents[k].classList.toggle("hidden");
     }
@@ -3006,19 +3009,29 @@ function adjustHiddenHeaderCount(value) {
         currNum = Number(currNum) + value;
     }
 
-    // With hidden torrents the label is a toggle button; without any it is just the plain title
+    if(currNum === 0 && value !== 0) {
+        lfRenderHeaderToggle(0);
+        toggleTorrents();
+    } else {
+        lfRenderHeaderToggle(currNum);
+    }
+}
+
+// With hidden torrents the header label is a toggle button (highlighted while hidden torrents are being shown);
+// without any it is just the plain title
+function lfRenderHeaderToggle(currNum) {
     headerNode.classList.toggle("lfNiceButton", currNum !== 0);
+    headerNode.classList.toggle("lfToggleOn", currNum !== 0 && lfHiddenTorrentsToggled);
 
     if(currNum === 0) {
         headerNode.innerHTML = "LuminFilter";
         headerNode.removeAttribute("title");
-
-        if(value !== 0) {
-            toggleTorrents();
-        }
+    } else if(lfHiddenTorrentsToggled) {
+        headerNode.innerHTML = `${lfEmojiEnabled ? '<span class="lfEmoji">👁</span> ' : ""}${currNum} shown`;
+        headerNode.title = "Showing the " + currNum + " hidden torrent" + (currNum == 1 ? "" : "s") + " (click to hide them again)";
     } else {
         headerNode.innerHTML = `${lfEmojiEnabled ? '<span class="lfEmoji">🙈</span> ' : ""}${currNum} hidden`;
-        headerNode.title = "Show or hide the " + currNum + " hidden torrent" + (currNum == 1 ? "" : "s");
+        headerNode.title = "Show the " + currNum + " hidden torrent" + (currNum == 1 ? "" : "s");
     }
 }
 
@@ -4224,6 +4237,12 @@ a.lfLink, a.lfLink:visited {
     margin-left: 5px;
     margin-right: 5px;
     font-size: 16px;
+}
+
+.lfNiceButton.lfToggleOn {
+    background-color: ${themes[lfSelectedTheme].accentColor} !important;
+    color: ${themes[lfSelectedTheme].backgroundColor} !important;
+    font-weight: bold;
 }
 
 .lfNiceButton:hover, .lfRCMButton:hover {

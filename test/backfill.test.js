@@ -33,7 +33,7 @@ const click = (t, el) => el.dispatchEvent(new t.w.MouseEvent("click", { bubbles:
     assert.deepStrictEqual(t.fetched, Object.keys(PAGES));
     assert.deepStrictEqual(ids(t), ["1", "2", "3", "4", "5", "6"]);                 // row 2 was not added twice
     assert.deepStrictEqual(hidden(t), [false, true, true, false, false, true]);
-    assert.strictEqual(t.doc.getElementById("lfHeader").textContent.match(/(\d+) hidden/)[1], "3");
+    assert.strictEqual(t.doc.getElementById("lfHeader").textContent.match(/(\d+) (?:hidden|shown)/)[1], "3");
     assert.strictEqual(t.doc.querySelectorAll(".lfToggleIcon").length, 6 - 0);      // eye icon on every row (individual hiding is on by default)
     assert.strictEqual(t.doc.querySelectorAll("tr.torrent a.lfTagElement.lfHiddenTag").length, 3);   // tag highlighting + right-click marks on new rows
     assert.deepStrictEqual([...t.doc.querySelectorAll("a.pager_page")].map(a => a.classList.contains("lfBackfilledPagerPage")), [true, true]);

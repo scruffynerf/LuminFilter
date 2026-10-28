@@ -48,7 +48,7 @@ rclick(t, icons(t)[2]);
 assert.deepStrictEqual(hidden(t), [false, false, false, true]);
 assert.deepStrictEqual(state(icons(t)[2]), ["Untouched"]);
 assert.deepStrictEqual(stored(t, "lfIndividualUploadHidingBlacklist"), []);
-assert.strictEqual(header(t).match(/(\d+) hidden/)[1], "1");   // header count tracks the hidden rows (just D)
+assert.strictEqual(header(t).match(/(\d+) (?:hidden|shown)/)[1], "1");   // header count tracks the hidden rows (just D)
 
 // Hidden rows are marked with an inside outline (a stylesheet rule), never an inline background colour
 assert.ok(/tr\[isLFHidden="1"\]\s*\{[^}]*outline:\s*2px solid #e53935[^}]*outline-offset:\s*-2px/.test(t.styles.join("\n")));   // reddish default
@@ -72,11 +72,11 @@ click(t, icons(t)[0]);
 assert.deepStrictEqual(hidden(t), [true, true, false, true]);
 assert.deepStrictEqual(icons(t).map(state), [["Blacklisted"], ["Blacklisted"], ["Untouched"], ["Untouched"]]);
 assert.deepStrictEqual(stored(t, "lfIndividualUploadHidingBlacklist"), ["11"]);
-assert.strictEqual(header(t).match(/(\d+) hidden/)[1], "3");
+assert.strictEqual(header(t).match(/(\d+) (?:hidden|shown)/)[1], "3");
 click(t, icons(t)[1]);
 assert.deepStrictEqual(hidden(t), [false, false, false, true]);
 assert.deepStrictEqual(icons(t).map(state), [["Whitelisted"], ["Whitelisted"], ["Untouched"], ["Untouched"]]);
-assert.strictEqual(header(t).match(/(\d+) hidden/)[1], "1");
+assert.strictEqual(header(t).match(/(\d+) (?:hidden|shown)/)[1], "1");
 rclick(t, icons(t)[0]);
 assert.deepStrictEqual(icons(t).map(state), [["Untouched"], ["Untouched"], ["Untouched"], ["Untouched"]]);
 assert.deepStrictEqual(stored(t, "lfIndividualUploadHidingWhitelist"), []);
@@ -85,7 +85,7 @@ assert.deepStrictEqual(hidden(t), [false, false, false, true]);
 click(t, icons(t)[2]); assert.deepStrictEqual(hidden(t), [false, false, true, true]);
 rclick(t, icons(t)[2]);
 assert.deepStrictEqual(hidden(t), [false, false, false, true]);
-assert.strictEqual(header(t).match(/(\d+) hidden/)[1], "1");
+assert.strictEqual(header(t).match(/(\d+) (?:hidden|shown)/)[1], "1");
 assert.deepStrictEqual(t.errors, []);
 
 // --- Torrent details page: one icon for the torrent in the URL ---
