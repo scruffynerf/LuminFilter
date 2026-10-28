@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.7
+// @version      3.6.8
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -642,6 +642,7 @@ let lfHideLeechingEnabled = GM_getValue("lfHideLeechingEnabled", false);
 let lfHideSeedingEnabled = GM_getValue("lfHideSeedingEnabled", false);
 let lfHideSnatchedEnabled = GM_getValue("lfHideSnatchedEnabled", false);
 let lfHideBookmarkedEnabled = GM_getValue("lfHideBookmarkedEnabled", false);
+let lfSpotlightRowGlow = GM_getValue("lfSpotlightRowGlow", false);
 let lfBypassWhitelistsEnabled = GM_getValue("lfBypassWhitelistsEnabled", false);
 
 //   Hard Pass
@@ -1462,6 +1463,12 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                 </label>
                 <span class="lfExplanationSpan">(Hide torrents you have already downloaded/snatched)</span><br />
 
+                <input type="checkbox" id="lfCheckSpotlightRowGlow"${lfSpotlightRowGlow ? ' checked' : ''} />
+                <label for="lfCheckSpotlightRowGlow" class="lfSettingsCheckbox">
+                    <span class="lfEmoji">🔆</span> Spotlight the whole row
+                </label>
+                <span class="lfExplanationSpan">(Marks the entire row, not just the tag, title or uploader, when something in it matches a spotlight list. Uses the spotlight color.)</span><br /><br />
+
                 <input type="checkbox" id="lfCheckHideBookmarked"${lfHideBookmarkedEnabled ? ' checked' : ''} />
                 <label for="lfCheckHideBookmarked" class="lfSettingsCheckbox">
                     <span class="lfEmoji">⭐</span> Hide bookmarked uploads
@@ -1848,6 +1855,21 @@ if(currentPage == "Notification filters") {
 
 // Filter one torrent row: hides it, highlights what matched, and adds the individual hide button.
 // "i" only needs to be unique per row (it is used for the eye icon's element id).
+// The torrent title link of a listing row. Other scripts (thumbnail viewers) may put an image-only link in the
+// first cell, so take the first link that has real text and no image, falling back to the first link at all.
+// Mark the whole row when anything in it is spotlighted (optional setting)
+function lfSyncSpotlightRow(row) {
+    row.classList.toggle("lfSpotlightRow", row.querySelector(".lfHighlightedTag, .lfHighlightedTitle, .lfHighlightedUploader") !== null);
+}
+
+function lfFindTitleLink(row) {
+    const links = row.querySelectorAll(currentPage == "Collage" ? "td > strong > a" : "td > a");
+    for(const link of links) {
+        if(link.textContent.trim() !== "" && !link.querySelector("img")) { return link; }
+    }
+    return links.length ? links[0] : null;
+}
+
 function lfFilterRow(row, i) {
     let tagElement = row.querySelector("td > div.tags");
 
@@ -1871,11 +1893,7 @@ function lfFilterRow(row, i) {
         uploaderElement = row.querySelector("td.user > a");
     }
 
-    if(currentPage == "Collage") {
-        titleElement = row.querySelector("td > strong > a");
-    } else {
-        titleElement = row.querySelector("td > a");
-    }
+    titleElement = lfFindTitleLink(row);
 
     let countMe = 1;
     let currentHidden = false;
@@ -2172,6 +2190,8 @@ function lfFilterRow(row, i) {
         }
     }
 
+    if(lfSpotlightRowGlow) { lfSyncSpotlightRow(row); }
+
     // If forcing through individual filtering, ignore results
     if(currentForceShow) {
         currentHidden = false;
@@ -2460,7 +2480,7 @@ function lfMarkRowForMenus(row) {
 
     // Titles
     if(lfRCMTitlesEnabled) {
-        let titleElement = row.querySelector(currentPage == "Collage" ? "td > strong > a" : "td > a");
+        let titleElement = lfFindTitleLink(row);
         if(titleElement) { titleElement.classList.add("lfTitleElement"); }
     }
 
@@ -2494,6 +2514,8 @@ function recolorTags() {
     if(tagList !== null && tagList !== undefined) {
         for(let i = 0; i < tagList.length; i++) {
             tagList[i].classList.toggle("lfHighlightedTag", lfMatch.tagHighlight.has(lfTagKey(tagList[i].innerHTML)));
+            const glowRow = tagList[i].closest("tr.torrent");
+            if(glowRow && lfSpotlightRowGlow) { lfSyncSpotlightRow(glowRow); }
 
             if(lfMatch.tagBlacklist.has(lfTagKey(tagList[i].innerHTML))) {
                 tagList[i].classList.remove("lfHardPassTag");
@@ -2530,6 +2552,8 @@ function recolorUploaders() {
     if(uploaderElements) {
         for(let i = 0; i < uploaderElements.length; i++) {
             uploaderElements[i].classList.toggle("lfHighlightedUploader", lfMatch.uploaderHighlight.has(uploaderElements[i].innerHTML.trim().toLowerCase()));
+            const glowRow = uploaderElements[i].closest("tr.torrent");
+            if(glowRow && lfSpotlightRowGlow) { lfSyncSpotlightRow(glowRow); }
 
             if(lfBlacklistUploaders.includes(uploaderElements[i].innerHTML.trim())) {
                 uploaderElements[i].classList.remove("lfWhitelistedUploader");
@@ -3242,11 +3266,11 @@ function lfBindContextMenu(element, kind) {
             titleClone.querySelectorAll(".lfHiddenTitle, .lfHardPassTitle, .lfWhitelistedTitle").forEach(function(badge) { badge.remove(); });
             value = titleClone.textContent.trim();
         }
-        showRCMBox(kind, value, event.pageX, event.pageY, this.getAttribute("href"));
+        showRCMBox(kind, value, event.pageX, event.pageY, this.getAttribute("href"), this);
     }, false);
 }
 
-function showRCMBox(boxType, elementValue, mouseX, mouseY, linkHref) {
+function showRCMBox(boxType, elementValue, mouseX, mouseY, linkHref, sourceElement) {
     let box = document.getElementById("lfRCMBox");
     let x = mouseX;
     let y = mouseY;
@@ -3538,10 +3562,40 @@ function showRCMBox(boxType, elementValue, mouseX, mouseY, linkHref) {
     }
 
     lfAddHighlightButton(boxType, elementValue);
+    lfAddUploaderRuleButton(boxType, elementValue, sourceElement);
     lfAddRCMLink(linkHref);
 
     box.classList.remove("hidden");
     return false;
+}
+
+// Tag menu, listing rows only: hide this tag just for the uploader of this row, by adding a conditional rule.
+// Only offered when conditional rules are enabled.
+function lfAddUploaderRuleButton(boxType, tagKey, sourceElement) {
+    if(boxType !== "tag" || !lfConditionalEnabled || !sourceElement) { return; }
+
+    const row = sourceElement.closest("tr.torrent");
+    const uploaderLink = row ? row.querySelector(currentPage == "Top 10" ? "td:nth-child(10) > a" : "td.user > a") : null;
+    const choices = document.getElementById("lfRCMBoxChoices");
+    if(!uploaderLink || !choices) { return; }
+
+    const uploader = uploaderLink.textContent.trim();
+    if(uploader === "" || /[{}]/.test(uploader + tagKey)) { return; }
+
+    const rule = `HIDE: $UP{${uploader}} AND $TA{${tagKey}}`;
+    choices.insertAdjacentHTML("beforeend", `<br /><br /><span class="lfRCMButton" id="lfRCMBoxUploaderRule" title="Adds a conditional rule: ${lfEscapeHTML(rule)}">${lfEmojiEnabled ? "🧩" : "+"} Hide only for ${lfEscapeHTML(uploader)}</span>`);
+
+    document.getElementById("lfRCMBoxUploaderRule").onclick = function() {
+        const area = document.getElementById("lfConditionalRulesArea");
+        const existing = area.value.split("\n").map(line => line.trim().toLowerCase());
+        if(!existing.includes(rule.toLowerCase())) {
+            area.value = area.value.replace(/\s+$/, "") + (area.value.trim() === "" ? "" : "\n") + rule + "\n";
+        }
+
+        saveData();
+        document.getElementById("lfDynamicRefreshNode").classList.remove("hidden");
+        closeRCMBox();
+    };
 }
 
 // Our menu replaces the browser's, so offer the original link here as a real link: right-click it for
@@ -3863,6 +3917,7 @@ function saveData() {
         lfHideLeechingEnabled: "lfCheckHideLeeching",
         lfHideGrabbedEnabled: "lfCheckHideGrabbed",
         lfHideBookmarkedEnabled: "lfCheckHideBookmarked",
+        lfSpotlightRowGlow: "lfCheckSpotlightRowGlow",
         lfBypassWhitelistsEnabled: "lfCheckBypassWhitelists",
         lfIndividualUploadHidingEnabled: "lfCheckIndividualHide",
         lfFilterAllButtonEnabled: "lfCheckFilterAllButtonEnabled",
@@ -4237,6 +4292,10 @@ a.lfLink, a.lfLink:visited {
     margin-left: 5px;
     margin-right: 5px;
     font-size: 16px;
+}
+
+tr.lfSpotlightRow {
+    box-shadow: inset 4px 0 0 0 ${lfHighlightColor}, 0 0 10px 1px ${lfHighlightColor}66;
 }
 
 .lfNiceButton.lfToggleOn {

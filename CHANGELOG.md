@@ -1,4 +1,9 @@
 # Latest changes
+## v3.6.8
+- Title lookup no longer trips over other scripts that add image-only links to the first column (such as thumbnail viewers)
+- New option "Spotlight the whole row": rows containing anything from your spotlight lists get a colored edge and glow
+- Tag right-click menu: "Hide only for <uploader>" adds a conditional rule that hides that tag only for that uploader (shown when conditional rules are enabled)
+
 ## v3.6.7
 - The hidden-torrents toggle now shows its state: "🙈 N hidden" normally, and a filled button reading "👁 N shown" while the hidden torrents are being shown
 
