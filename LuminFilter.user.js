@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.9
+// @version      3.6.10
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -4294,8 +4294,18 @@ a.lfLink, a.lfLink:visited {
     font-size: 16px;
 }
 
-tr.lfSpotlightRow {
-    box-shadow: inset 4px 0 0 0 ${lfHighlightColor}, 0 0 10px 1px ${lfHighlightColor}66;
+/* Drawn on the cells: browsers often ignore box-shadow and backgrounds on the <tr> itself */
+tr.lfSpotlightRow > td {
+    box-shadow: inset 0 2px 0 0 ${lfHighlightColor}, inset 0 -2px 0 0 ${lfHighlightColor} !important;
+    background-image: linear-gradient(${lfHighlightColor}26, ${lfHighlightColor}26) !important;
+}
+
+tr.lfSpotlightRow > td:first-child {
+    box-shadow: inset 6px 0 0 0 ${lfHighlightColor}, inset 0 2px 0 0 ${lfHighlightColor}, inset 0 -2px 0 0 ${lfHighlightColor} !important;
+}
+
+tr.lfSpotlightRow > td:last-child {
+    box-shadow: inset -2px 0 0 0 ${lfHighlightColor}, inset 0 2px 0 0 ${lfHighlightColor}, inset 0 -2px 0 0 ${lfHighlightColor} !important;
 }
 
 .lfNiceButton.lfToggleOn {

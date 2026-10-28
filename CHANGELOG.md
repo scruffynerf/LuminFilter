@@ -1,4 +1,7 @@
 # Latest changes
+## v3.6.10
+- "Spotlight the whole row" is now drawn on the row's cells (a colored edge, top and bottom lines and a faint tint), because browsers often don't draw shadows on the table row itself
+
 ## v3.6.9
 - The "Spotlight the whole row" option moved next to the colour settings (Settings tab), where it was hard to find
 
