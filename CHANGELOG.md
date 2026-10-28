@@ -1,4 +1,7 @@
 # Latest changes
+## v3.6.11
+- Spotlighted rows are much more visible: a strong tint over the whole row, a soft inner glow and a thick colored edge
+
 ## v3.6.10
 - "Spotlight the whole row" is now drawn on the row's cells (a colored edge, top and bottom lines and a faint tint), because browsers often don't draw shadows on the table row itself
 
