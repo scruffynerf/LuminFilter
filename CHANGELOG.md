@@ -1,4 +1,7 @@
 # Latest changes
+## v3.6.9
+- The "Spotlight the whole row" option moved next to the colour settings (Settings tab), where it was hard to find
+
 ## v3.6.8
 - Title lookup no longer trips over other scripts that add image-only links to the first column (such as thumbnail viewers)
 - New option "Spotlight the whole row": rows containing anything from your spotlight lists get a colored edge and glow

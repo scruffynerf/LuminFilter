@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.8
+// @version      3.6.9
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -1463,12 +1463,6 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                 </label>
                 <span class="lfExplanationSpan">(Hide torrents you have already downloaded/snatched)</span><br />
 
-                <input type="checkbox" id="lfCheckSpotlightRowGlow"${lfSpotlightRowGlow ? ' checked' : ''} />
-                <label for="lfCheckSpotlightRowGlow" class="lfSettingsCheckbox">
-                    <span class="lfEmoji">🔆</span> Spotlight the whole row
-                </label>
-                <span class="lfExplanationSpan">(Marks the entire row, not just the tag, title or uploader, when something in it matches a spotlight list. Uses the spotlight color.)</span><br /><br />
-
                 <input type="checkbox" id="lfCheckHideBookmarked"${lfHideBookmarkedEnabled ? ' checked' : ''} />
                 <label for="lfCheckHideBookmarked" class="lfSettingsCheckbox">
                     <span class="lfEmoji">⭐</span> Hide bookmarked uploads
@@ -1603,6 +1597,12 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                         ${Object.entries(LF_COLOR_PRESETS).map(([key, preset]) => `<option value="${key}">${preset.label}</option>`).join("")}
                     </select> <span class="lfExplanationSpan">(Only fills in the boxes. Click [Save] to keep it.)</span>
                     <br /><br />
+
+                <input type="checkbox" id="lfCheckSpotlightRowGlow"${lfSpotlightRowGlow ? ' checked' : ''} />
+                <label for="lfCheckSpotlightRowGlow" class="lfSettingsCheckbox">
+                    <span class="lfEmoji">🔆</span> Spotlight the whole row
+                </label>
+                <span class="lfExplanationSpan">(Marks the entire row, not just the tag, title or uploader, when something in it matches a spotlight list. Uses the spotlight color.)</span><br /><br />
 
                     Outline for hidden torrents: <br />
                     <input type="text" class="lfInput" style="width: 90px;" value="${lfHiddenOutlineColor}" id="lfHiddenOutlineColor" title="Color" />
