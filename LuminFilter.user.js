@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.6.11
+// @version      3.7.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -97,8 +97,9 @@ function lfArrowKeyHandler(event) {
 
 // Pages that have torrent lists LuminFilter can filter. On every other page of a supported
 // site, LuminFilter does nothing except (optionally) arrow key navigation.
-// Note: bookmarks.php is deliberately not a filter page. What you bookmarked is your own curated list, so
-// nothing is hidden there ("Hide bookmarked" still applies on listings, collages and notifications).
+// Note: bookmarks.php (torrent bookmarks) only gets the header and the Freeleech view. What you bookmarked is
+// your own curated list, so none of your filter lists are applied there ("Hide bookmarked" still applies on
+// listings, collages and notifications).
 function lfIsFilterPage() {
     const path = window.location.pathname;
     const query = window.location.search;
@@ -106,6 +107,7 @@ function lfIsFilterPage() {
     if(/\/top10\.php$/.test(path) && /(\?|&)type=(users|tags|taggers)/.test(query)) { return false; }
 
     return /\/(torrents|top10|requests)\.php$/.test(path)
+        || (/\/bookmarks\.php$/.test(path) && !/(\?|&)type=(?!torrents)/.test(query))
         || /\/collage(\/|$)/.test(path)
         || (/\/user\.php$/.test(path) && /(\?|&)action=notify/.test(query));
 }
@@ -738,6 +740,11 @@ function lfSafeOptionalColor(value) {
 }
 lfHighlightColor = lfSafeColor(lfHighlightColor);
 lfHighlightBgColor = lfSafeOptionalColor(lfHighlightBgColor);
+
+// Freeleech: header view button and icon highlighting
+let lfFreeleechButtonEnabled = GM_getValue("lfFreeleechButtonEnabled", true);
+let lfFreeleechHighlightEnabled = GM_getValue("lfFreeleechHighlightEnabled", true);
+let lfSitewideFLColor = lfSafeColor(GM_getValue("lfSitewideFLColor", "#00c8ff"));
 lfBlacklistBgColor = lfSafeOptionalColor(lfBlacklistBgColor);
 lfHardPassBgColor = lfSafeOptionalColor(lfHardPassBgColor);
 lfWhitelistBgColor = lfSafeOptionalColor(lfWhitelistBgColor);
@@ -852,6 +859,8 @@ if(window.location.href.includes("top10.php")) {
     currentPage = "Collage";
 } else if(window.location.href.includes("/requests.php")) {
     currentPage = "Requests";
+} else if(window.location.pathname.includes("/bookmarks.php")) {
+    currentPage = "Bookmarks";
 } else if(window.location.href.includes("type=uploaded")) {
     // Check if we are on our own uploaded page
     let myUserID = document.querySelector(".username").href.match(/id=([0-9]+)/)[1];
@@ -865,7 +874,7 @@ if(window.location.href.includes("top10.php")) {
 }
 
 // Define which of our pages where filtering doesn't apply, but other functionality should work
-let lfUnfilteredPages = ["My uploaded", "Notification filters", "Torrent details"];
+let lfUnfilteredPages = ["My uploaded", "Notification filters", "Torrent details", "Bookmarks"];
 
 // Reenable torrent icon box and hide comments if GCD is running, check for its unique elements a.comment
 if(currentPage == "Torrents") { //torrents.php is the only page we have in common
@@ -975,7 +984,17 @@ if(currentPage == "Top 10" || currentPage == "Notification filters") {
     referenceNode = document.querySelector(".submit");
 } else if(currentPage == "Requests") {
     referenceNode = document.querySelector("#search_form");
+} else if(currentPage == "Bookmarks") {
+    // Above the torrent table (the markup of this page has not been checked as closely as the listings)
+    referenceNode = document.querySelector("div.linkbox") || document.querySelector("#content .thin > h2");
+    if(!referenceNode) {
+        const bookmarkTable = document.querySelector("table.torrent_table");
+        referenceNode = bookmarkTable ? bookmarkTable.previousElementSibling : null;
+    }
 }
+
+// The bookmarks page is new to us: without a place for the header, quietly do nothing there
+if(!referenceNode && currentPage == "Bookmarks") { return; }
 
 // Die if we can't get a reference node, most likely the site is borked or changed its code
 if(!referenceNode) {
@@ -997,6 +1016,9 @@ htmlContent.innerHTML = `
             <span class="lfNiceButton" id="lfBackfillButton" title="Load the following result pages onto this one and filter them">
                 <span class="lfEmoji">🔁</span> Backfill
             </span><span id="lfBackfillStatus" class="lfExplanationSpan"></span>
+        ` : ''}
+        ${lfFreeleechButtonEnabled && currentPage !== "Notification filters" && currentPage !== "Torrent details" ? `
+            <span class="lfNiceButton" id="lfFreeleechButton"></span>
         ` : ''}
         ${!lfUnfilteredPages.includes(currentPage) && lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled ? `
             <span class="lfNiceButton" id="lfFilterAllButton" title="Individually blacklist and hide all unfiltered results">
@@ -1603,6 +1625,21 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <span class="lfEmoji">🔆</span> Spotlight the whole row
                 </label>
                 <span class="lfExplanationSpan">(Marks the entire row, not just the tag, title or uploader, when something in it matches a spotlight list. Uses the spotlight color.)</span><br /><br />
+
+                    <input type="checkbox" id="lfCheckFreeleechButton"${lfFreeleechButtonEnabled ? ' checked' : ''} />
+                    <label for="lfCheckFreeleechButton" class="lfSettingsCheckbox">
+                        <span class="lfEmoji">🆓</span> Show the Freeleech button in the header
+                    </label>
+                    <span class="lfExplanationSpan">(Click to cycle through All, Freeleech (unlimited or sitewide) and Sitewide freeleech only. Also works on your bookmarks page.)</span><br />
+
+                    <input type="checkbox" id="lfCheckFreeleechHighlight"${lfFreeleechHighlightEnabled ? ' checked' : ''} />
+                    <label for="lfCheckFreeleechHighlight" class="lfSettingsCheckbox">
+                        <span class="lfEmoji">🔆</span> Mark freeleech icons
+                    </label>
+                    <span class="lfExplanationSpan">(Sitewide freeleech gets a glowing outline, unlimited freeleech a thin dashed one.)</span><br />
+                    Sitewide freeleech outline color: <br />
+                    <input type="text" class="lfInput" style="width: 90px;" value="${lfSitewideFLColor}" id="lfSitewideFLColor" />
+                    <br /><br />
 
                     Outline for hidden torrents: <br />
                     <input type="text" class="lfInput" style="width: 90px;" value="${lfHiddenOutlineColor}" id="lfHiddenOutlineColor" title="Color" />
@@ -2602,9 +2639,101 @@ if(lfGlobalArrowNavigationEnabled || (lfArrowNavigationEnabled && currentPage !=
     document.addEventListener("keydown", lfArrowKeyHandler);
 }
 
+// +----------+
+// | Freeleech |
+// +----------+
+// "Unlimited" freeleech is permanent for a torrent; "sitewide" freeleech is a limited time offer for everything.
+// Both are read from the freeleech icon's title text and/or class names, which covers the different markup of the sites.
+const LF_FL_VIEWS = ["all", "any", "sitewide"];
+const LF_FL_RANK = { other: 1, sitewide: 2, unlimited: 3 };
+const lfFreeleechViewKey = currentPage == "Bookmarks" ? "lfFreeleechViewBookmarks" : "lfFreeleechView";
+let lfFreeleechView = GM_getValue(lfFreeleechViewKey, "all");
+if(!LF_FL_VIEWS.includes(lfFreeleechView)) { lfFreeleechView = "all"; }
+
+// { kind: "unlimited" | "sitewide" | "other" | null, el: the icon element }  (an unlimited torrent stays free when
+// the sitewide offer ends, so it counts as unlimited even if both are shown)
+function lfFreeleechInfo(row) {
+    if(row.lfFreeleech) { return row.lfFreeleech; }
+
+    let info = { kind: null, el: null };
+    for(const node of row.querySelectorAll("[title], .sitewide_leech, .unlimited_leech")) {
+        const title = node.getAttribute("title") || "";
+        let kind = null;
+
+        if(node.classList.contains("unlimited_leech") || /unlimited\s+free\s?leech/i.test(title)) {
+            kind = "unlimited";
+        } else if(node.classList.contains("sitewide_leech") || /sitewide\s+free\s?leech/i.test(title)) {
+            kind = "sitewide";
+        } else if(/free\s?leech/i.test(title) && !/double\s?seed/i.test(title)) {
+            kind = "other";
+        }
+
+        if(kind && (info.kind === null || LF_FL_RANK[kind] > LF_FL_RANK[info.kind])) {
+            info = { kind: kind, el: node.closest("span.icon") || node };
+        }
+    }
+
+    row.lfFreeleech = info;
+    return info;
+}
+
+// Apply the highlight and the current view to one row
+function lfApplyFreeleechToRow(row) {
+    const info = lfFreeleechInfo(row);
+
+    if(lfFreeleechHighlightEnabled && info.el) {
+        if(info.kind === "sitewide") { info.el.classList.add("lfSitewideFL"); }
+        if(info.kind === "unlimited") { info.el.classList.add("lfUnlimitedFL"); }
+    }
+
+    const show = lfFreeleechView === "all"
+        || (lfFreeleechView === "any" && info.kind !== null)
+        || (lfFreeleechView === "sitewide" && info.kind === "sitewide");
+    row.classList.toggle("lfFreeleechHidden", !show);
+}
+
+function lfRenderFreeleechButton() {
+    const button = document.getElementById("lfFreeleechButton");
+    if(!button) { return; }
+
+    const rows = document.querySelectorAll("tr.torrent");
+    let anyCount = 0, sitewideCount = 0;
+    for(const row of rows) {
+        const kind = lfFreeleechInfo(row).kind;
+        if(kind !== null) { anyCount++; }
+        if(kind === "sitewide") { sitewideCount++; }
+    }
+
+    const labels = { all: "All", any: "Freeleech", sitewide: "Sitewide" };
+    const tips = {
+        all: "Showing all torrents. Click to show only freeleech torrents (" + anyCount + " here).",
+        any: "Showing only freeleech torrents (unlimited and sitewide). Click to show only sitewide freeleech (" + sitewideCount + " here).",
+        sitewide: "Showing only sitewide (time limited) freeleech torrents. Click to show all torrents."
+    };
+
+    button.innerHTML = (lfEmojiEnabled ? '<span class="lfEmoji">🆓</span> ' : "Free: ") + labels[lfFreeleechView];
+    button.title = tips[lfFreeleechView];
+    button.classList.toggle("lfToggleOn", lfFreeleechView !== "all");
+}
+
+for(const row of document.querySelectorAll("tr.torrent")) { lfApplyFreeleechToRow(row); }
+lfRenderFreeleechButton();
+
+if(document.getElementById("lfFreeleechButton")) {
+    document.getElementById("lfFreeleechButton").onclick = function() {
+        lfFreeleechView = LF_FL_VIEWS[(LF_FL_VIEWS.indexOf(lfFreeleechView) + 1) % LF_FL_VIEWS.length];
+        GM_setValue(lfFreeleechViewKey, lfFreeleechView);
+
+        for(const row of document.querySelectorAll("tr.torrent")) { lfApplyFreeleechToRow(row); }
+        lfRenderFreeleechButton();
+    };
+}
+
 let headerNode = document.getElementById("lfHeaderText");
 
-if(lfUnfilteredPages.includes(currentPage)) {
+if(currentPage == "Bookmarks") {
+    headerNode.style.cursor = "auto";   // only the Freeleech view applies here
+} else if(lfUnfilteredPages.includes(currentPage)) {
     headerNode.innerHTML = "Filtering is disabled on this page";
     headerNode.style.cursor = "auto";
 } else {
@@ -3149,6 +3278,7 @@ function lfProcessBackfilledRows(rows) {
     for(const row of rows) {
         lfRunRowScripts(row);
         lfFilterRow(row, lfNextRowId++);
+        lfApplyFreeleechToRow(row);
 
         if(lfRightClickManagementEnabled) {
             lfMarkRowForMenus(row);
@@ -3233,6 +3363,7 @@ async function lfBackfillResults() {
 
             const newlyHidden = lfProcessBackfilledRows(appendedRows);
             if(newlyHidden !== 0) { adjustHiddenHeaderCount(newlyHidden); }
+            lfRenderFreeleechButton();
 
             lfMarkBackfilledPagerLink(currentURL);
             pagesLoaded++;
@@ -3918,6 +4049,8 @@ function saveData() {
         lfHideGrabbedEnabled: "lfCheckHideGrabbed",
         lfHideBookmarkedEnabled: "lfCheckHideBookmarked",
         lfSpotlightRowGlow: "lfCheckSpotlightRowGlow",
+        lfFreeleechButtonEnabled: "lfCheckFreeleechButton",
+        lfFreeleechHighlightEnabled: "lfCheckFreeleechHighlight",
         lfBypassWhitelistsEnabled: "lfCheckBypassWhitelists",
         lfIndividualUploadHidingEnabled: "lfCheckIndividualHide",
         lfFilterAllButtonEnabled: "lfCheckFilterAllButtonEnabled",
@@ -3979,6 +4112,10 @@ function saveData() {
     GM_setValue("lfHiddenOutlineStyle", lfHiddenOutlineStyle);
     document.getElementById("lfHiddenOutlineColor").value = lfHiddenOutlineColor;
     document.getElementById("lfHiddenOutlineWidth").value = lfHiddenOutlineWidth;
+
+    lfSitewideFLColor = lfSafeColor(document.getElementById("lfSitewideFLColor").value);
+    GM_setValue("lfSitewideFLColor", lfSitewideFLColor);
+    document.getElementById("lfSitewideFLColor").value = lfSitewideFLColor;
 
     lfHighlightColor = lfSafeColor(document.getElementById("lfHighlightColor").value);
     GM_setValue("lfHighlightColor", lfHighlightColor);
@@ -4292,6 +4429,24 @@ a.lfLink, a.lfLink:visited {
     margin-left: 5px;
     margin-right: 5px;
     font-size: 16px;
+}
+
+/* Freeleech view (header button) and icon marks */
+tr.lfFreeleechHidden {
+    display: none !important;
+}
+
+.lfSitewideFL {
+    outline: 2px solid ${lfSitewideFLColor};
+    outline-offset: 1px;
+    border-radius: 3px;
+    box-shadow: 0 0 7px 1px ${lfSitewideFLColor};
+}
+
+.lfUnlimitedFL {
+    outline: 1px dashed #888;
+    outline-offset: 1px;
+    border-radius: 3px;
 }
 
 /* Drawn on the cells: browsers often ignore box-shadow and backgrounds on the <tr> itself.

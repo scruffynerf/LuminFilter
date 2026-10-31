@@ -31,6 +31,8 @@ p.doc.querySelector("a.pager_next").remove(); p.press("ArrowRight"); assert.deep
 p = page("https://www.happyfappy.net/top10.php?type=users", { lfGlobalArrowNavigationEnabled: true });
 assert.ok(!p.hasUI()); p.press("ArrowRight"); assert.deepStrictEqual(p.clicks, ["pager_next"]);
 p = page("https://www.happyfappy.net/bookmarks.php", {});
+assert.deepStrictEqual(p.errors, []); assert.ok(!p.hasUI());   // nothing to anchor the header to: quietly does nothing
+p = page("https://www.happyfappy.net/bookmarks.php?type=collages", {});
 assert.deepStrictEqual(p.errors, []); assert.ok(!p.hasUI());
 
 // Other site behaves the same

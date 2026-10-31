@@ -1,4 +1,10 @@
 # Latest changes
+## v3.7.0
+- New Freeleech button in the header cycles the view between All, Freeleech (unlimited or sitewide) and Sitewide only (the time limited offer, so you can skip always-free torrents during a sitewide event). The choice is remembered
+- Your torrent bookmarks page now gets the header with the Freeleech button (it still applies none of your filter lists there), with its own remembered setting
+- Freeleech icons are marked: sitewide freeleech gets a glowing outline (color configurable in Settings), unlimited freeleech a thin dashed one
+- Works with the icon markup of all three sites (title text and class names)
+
 ## v3.6.11
 - Spotlighted rows are much more visible: a strong tint over the whole row, a soft inner glow and a thick colored edge
 
