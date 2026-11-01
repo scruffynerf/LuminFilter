@@ -31,3 +31,11 @@ btn.dispatchEvent(new t.w.MouseEvent("click", { bubbles: true, cancelable: true 
 assert.deepStrictEqual(t.errors, []); assert.deepStrictEqual(t.bad, []);
 assert.strictEqual(JSON.parse(t.raw.lfConditionalRules), "HIDE: $UP{u} AND $TA{fav.tag}");
 console.log("compat.test OK");
+
+// 9. Our styles must not touch the site's own <section>/<p> elements (HF's file tree is a <section>)
+t = boot({ body, seed: { ...q } });
+const css = t.styles.join("\n");
+assert.ok(!/(^|[\s,}])section\s*[,{]/m.test(css), "unscoped section rule");
+assert.ok(!/(^|[\s,}])p:not\(/m.test(css), "unscoped p rule");
+assert.ok(/#lfOuter section\s*\{/.test(css));
+console.log("compat.test section scope OK");

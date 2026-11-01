@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.7.0
+// @version      3.7.1
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -4167,11 +4167,11 @@ GM_addStyle(`
     margin-top: 10px;
 }
 
-p:not(:last-child) {
+#lfOuter p:not(:last-child), #lfRCMBox p:not(:last-child) {
     margin: 0 0 20px;
 }
 
-section {
+#lfOuter section {
     display: none;
     padding: 20px 0 0;
     border-top: 1px solid ${themes[lfSelectedTheme].accentColor};

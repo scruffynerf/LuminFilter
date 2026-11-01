@@ -1,4 +1,7 @@
 # Latest changes
+## v3.7.1
+- Fixed the file list ("View Filelist") on HappyFappy showing empty: our styles hid every `<section>` on the page, including the site's new file tree. Our styles now only apply to LuminFilter's own panels
+
 ## v3.7.0
 - New Freeleech button in the header cycles the view between All, Freeleech (unlimited or sitewide) and Sitewide only (the time limited offer, so you can skip always-free torrents during a sitewide event). The choice is remembered
 - Your torrent bookmarks page now gets the header with the Freeleech button (it still applies none of your filter lists there), with its own remembered setting
