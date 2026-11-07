@@ -1,4 +1,7 @@
 # Latest changes
+## v3.8.0
+- Personal freeleech (the temporary per-account kind, "Personal Freeleech for 17 hours...") is recognized: it counts as Freeleech in the header button view and gets its own dotted outline (color configurable in Settings). It is not included in the "Sitewide" view
+
 ## v3.7.1
 - Fixed the file list ("View Filelist") on HappyFappy showing empty: our styles hid every `<section>` on the page, including the site's new file tree. Our styles now only apply to LuminFilter's own panels
 

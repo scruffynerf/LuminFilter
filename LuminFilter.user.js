@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.7.1
+// @version      3.8.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -745,6 +745,7 @@ lfHighlightBgColor = lfSafeOptionalColor(lfHighlightBgColor);
 let lfFreeleechButtonEnabled = GM_getValue("lfFreeleechButtonEnabled", true);
 let lfFreeleechHighlightEnabled = GM_getValue("lfFreeleechHighlightEnabled", true);
 let lfSitewideFLColor = lfSafeColor(GM_getValue("lfSitewideFLColor", "#00c8ff"));
+let lfPersonalFLColor = lfSafeColor(GM_getValue("lfPersonalFLColor", "#d070ff"));
 lfBlacklistBgColor = lfSafeOptionalColor(lfBlacklistBgColor);
 lfHardPassBgColor = lfSafeOptionalColor(lfHardPassBgColor);
 lfWhitelistBgColor = lfSafeOptionalColor(lfWhitelistBgColor);
@@ -1630,15 +1631,17 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <label for="lfCheckFreeleechButton" class="lfSettingsCheckbox">
                         <span class="lfEmoji">🆓</span> Show the Freeleech button in the header
                     </label>
-                    <span class="lfExplanationSpan">(Click to cycle through All, Freeleech (unlimited or sitewide) and Sitewide freeleech only. Also works on your bookmarks page.)</span><br />
+                    <span class="lfExplanationSpan">(Click to cycle through All, Freeleech (unlimited, sitewide or personal) and Sitewide freeleech only. Also works on your bookmarks page.)</span><br />
 
                     <input type="checkbox" id="lfCheckFreeleechHighlight"${lfFreeleechHighlightEnabled ? ' checked' : ''} />
                     <label for="lfCheckFreeleechHighlight" class="lfSettingsCheckbox">
                         <span class="lfEmoji">🔆</span> Mark freeleech icons
                     </label>
-                    <span class="lfExplanationSpan">(Sitewide freeleech gets a glowing outline, unlimited freeleech a thin dashed one.)</span><br />
+                    <span class="lfExplanationSpan">(Sitewide freeleech gets a glowing outline, unlimited freeleech a thin dashed one, personal freeleech a dotted one.)</span><br />
                     Sitewide freeleech outline color: <br />
-                    <input type="text" class="lfInput" style="width: 90px;" value="${lfSitewideFLColor}" id="lfSitewideFLColor" />
+                    <input type="text" class="lfInput" style="width: 90px;" value="${lfSitewideFLColor}" id="lfSitewideFLColor" /><br />
+                    Personal freeleech outline color: <br />
+                    <input type="text" class="lfInput" style="width: 90px;" value="${lfPersonalFLColor}" id="lfPersonalFLColor" />
                     <br /><br />
 
                     Outline for hidden torrents: <br />
@@ -2645,7 +2648,7 @@ if(lfGlobalArrowNavigationEnabled || (lfArrowNavigationEnabled && currentPage !=
 // "Unlimited" freeleech is permanent for a torrent; "sitewide" freeleech is a limited time offer for everything.
 // Both are read from the freeleech icon's title text and/or class names, which covers the different markup of the sites.
 const LF_FL_VIEWS = ["all", "any", "sitewide"];
-const LF_FL_RANK = { other: 1, sitewide: 2, unlimited: 3 };
+const LF_FL_RANK = { other: 1, personal: 2, sitewide: 3, unlimited: 4 };
 const lfFreeleechViewKey = currentPage == "Bookmarks" ? "lfFreeleechViewBookmarks" : "lfFreeleechView";
 let lfFreeleechView = GM_getValue(lfFreeleechViewKey, "all");
 if(!LF_FL_VIEWS.includes(lfFreeleechView)) { lfFreeleechView = "all"; }
@@ -2660,7 +2663,9 @@ function lfFreeleechInfo(row) {
         const title = node.getAttribute("title") || "";
         let kind = null;
 
-        if(node.classList.contains("unlimited_leech") || /unlimited\s+free\s?leech/i.test(title)) {
+        if(node.classList.contains("personal_leech") || /personal\s+free\s?leech/i.test(title)) {
+            kind = "personal";
+        } else if(node.classList.contains("unlimited_leech") || /unlimited\s+free\s?leech/i.test(title)) {
             kind = "unlimited";
         } else if(node.classList.contains("sitewide_leech") || /sitewide\s+free\s?leech/i.test(title)) {
             kind = "sitewide";
@@ -2684,6 +2689,7 @@ function lfApplyFreeleechToRow(row) {
     if(lfFreeleechHighlightEnabled && info.el) {
         if(info.kind === "sitewide") { info.el.classList.add("lfSitewideFL"); }
         if(info.kind === "unlimited") { info.el.classList.add("lfUnlimitedFL"); }
+        if(info.kind === "personal") { info.el.classList.add("lfPersonalFL"); }
     }
 
     const show = lfFreeleechView === "all"
@@ -2707,7 +2713,7 @@ function lfRenderFreeleechButton() {
     const labels = { all: "All", any: "Freeleech", sitewide: "Sitewide" };
     const tips = {
         all: "Showing all torrents. Click to show only freeleech torrents (" + anyCount + " here).",
-        any: "Showing only freeleech torrents (unlimited and sitewide). Click to show only sitewide freeleech (" + sitewideCount + " here).",
+        any: "Showing only freeleech torrents (unlimited, sitewide and personal). Click to show only sitewide freeleech (" + sitewideCount + " here).",
         sitewide: "Showing only sitewide (time limited) freeleech torrents. Click to show all torrents."
     };
 
@@ -4117,6 +4123,10 @@ function saveData() {
     GM_setValue("lfSitewideFLColor", lfSitewideFLColor);
     document.getElementById("lfSitewideFLColor").value = lfSitewideFLColor;
 
+    lfPersonalFLColor = lfSafeColor(document.getElementById("lfPersonalFLColor").value);
+    GM_setValue("lfPersonalFLColor", lfPersonalFLColor);
+    document.getElementById("lfPersonalFLColor").value = lfPersonalFLColor;
+
     lfHighlightColor = lfSafeColor(document.getElementById("lfHighlightColor").value);
     GM_setValue("lfHighlightColor", lfHighlightColor);
     document.getElementById("lfHighlightColor").value = lfHighlightColor;
@@ -4441,6 +4451,13 @@ tr.lfFreeleechHidden {
     outline-offset: 1px;
     border-radius: 3px;
     box-shadow: 0 0 7px 1px ${lfSitewideFLColor};
+}
+
+.lfPersonalFL {
+    outline: 2px dotted ${lfPersonalFLColor};
+    outline-offset: 1px;
+    border-radius: 3px;
+    box-shadow: 0 0 5px 0 ${lfPersonalFLColor};
 }
 
 .lfUnlimitedFL {

@@ -53,3 +53,13 @@ assert.deepStrictEqual(shown(t), [true, false]);
 assert.strictEqual(JSON.parse(t.raw.lfFreeleechViewBookmarks), "sitewide");
 assert.strictEqual(t.raw.lfFreeleechView, undefined);   // bookmarks keep their own setting
 console.log("freeleech.test OK");
+
+// Personal freeleech: its own kind, shown in the "Freeleech" view but not "Sitewide"
+const personal = '<span class="icon" title="Personal Freeleech for 17 hours and 24 mins"><div class="icon_container"><div class="icon_stack"><i class="font_icon torrent_icons personal_leech  bonus icon_torrent_bonus"></i></div></div></span>';
+t = boot({ body: listing(withIcon(row(1, "personal", ["a"], "u"), personal), row(2, "plain", ["a"], "u")), seed: { ...q, lfFreeleechView: "any" } });
+assert.deepStrictEqual(t.errors, []); assert.deepStrictEqual(t.bad, []);
+assert.deepStrictEqual(shown(t), [true, false]);
+assert.strictEqual(t.doc.querySelectorAll(".lfPersonalFL").length, 1);
+t = boot({ body: listing(withIcon(row(1, "personal", ["a"], "u"), personal), row(2, "plain", ["a"], "u")), seed: { ...q, lfFreeleechView: "sitewide" } });
+assert.deepStrictEqual(shown(t), [false, false]);
+console.log("freeleech personal OK");
