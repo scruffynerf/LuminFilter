@@ -1,4 +1,7 @@
 # Latest changes
+## v3.8.1
+- Personal freeleech is now included in the "Sitewide" view of the Freeleech button (it is a time limited offer too)
+
 ## v3.8.0
 - Personal freeleech (the temporary per-account kind, "Personal Freeleech for 17 hours...") is recognized: it counts as Freeleech in the header button view and gets its own dotted outline (color configurable in Settings). It is not included in the "Sitewide" view
 

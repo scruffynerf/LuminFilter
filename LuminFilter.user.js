@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.8.0
+// @version      3.8.1
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -2694,7 +2694,7 @@ function lfApplyFreeleechToRow(row) {
 
     const show = lfFreeleechView === "all"
         || (lfFreeleechView === "any" && info.kind !== null)
-        || (lfFreeleechView === "sitewide" && info.kind === "sitewide");
+        || (lfFreeleechView === "sitewide" && (info.kind === "sitewide" || info.kind === "personal"));
     row.classList.toggle("lfFreeleechHidden", !show);
 }
 
@@ -2707,14 +2707,14 @@ function lfRenderFreeleechButton() {
     for(const row of rows) {
         const kind = lfFreeleechInfo(row).kind;
         if(kind !== null) { anyCount++; }
-        if(kind === "sitewide") { sitewideCount++; }
+        if(kind === "sitewide" || kind === "personal") { sitewideCount++; }
     }
 
     const labels = { all: "All", any: "Freeleech", sitewide: "Sitewide" };
     const tips = {
         all: "Showing all torrents. Click to show only freeleech torrents (" + anyCount + " here).",
         any: "Showing only freeleech torrents (unlimited, sitewide and personal). Click to show only sitewide freeleech (" + sitewideCount + " here).",
-        sitewide: "Showing only sitewide (time limited) freeleech torrents. Click to show all torrents."
+        sitewide: "Showing only sitewide and personal (time limited) freeleech torrents. Click to show all torrents."
     };
 
     button.innerHTML = (lfEmojiEnabled ? '<span class="lfEmoji">🆓</span> ' : "Free: ") + labels[lfFreeleechView];

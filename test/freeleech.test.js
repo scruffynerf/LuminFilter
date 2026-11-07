@@ -61,5 +61,5 @@ assert.deepStrictEqual(t.errors, []); assert.deepStrictEqual(t.bad, []);
 assert.deepStrictEqual(shown(t), [true, false]);
 assert.strictEqual(t.doc.querySelectorAll(".lfPersonalFL").length, 1);
 t = boot({ body: listing(withIcon(row(1, "personal", ["a"], "u"), personal), row(2, "plain", ["a"], "u")), seed: { ...q, lfFreeleechView: "sitewide" } });
-assert.deepStrictEqual(shown(t), [false, false]);
+assert.deepStrictEqual(shown(t), [true, false]);
 console.log("freeleech personal OK");
