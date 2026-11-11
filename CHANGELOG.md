@@ -1,4 +1,8 @@
 # Latest changes
+## v3.9.1
+- The Seeded button now drives the "Hide unseeded uploads" setting itself and applies it immediately, without reloading: unseeded torrents count as hidden, show up when you toggle hidden torrents, and whitelisted ones (and ones you decided on with the eye icon) stay put. On your bookmarks page, which has no filtering, it remains a simple show/hide view
+- "Hide unseeded uploads" finds the zero-seed marker on the row instead of counting table columns, and no longer rewrites the seeders number to "(0)"
+
 ## v3.9.0
 - New Seeded button in the header: click to hide torrents with zero seeders, click again to show them. It works on listings and your bookmarks page (with its own remembered setting), independent of your filter lists. The "Hide unseeded uploads" filter setting is unchanged
 

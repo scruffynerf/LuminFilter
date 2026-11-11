@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.9.0
+// @version      3.9.1
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -1463,7 +1463,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                 <label for="lfCheckHideUnseeded" class="lfSettingsCheckbox">
                     <span class="lfEmoji">🏜️</span> Hide unseeded uploads
                 </label>
-                <span class="lfExplanationSpan">(Hide torrents with zero seeders, whitelists will override)</span><br /><br />
+                <span class="lfExplanationSpan">(Hide torrents with zero seeders, whitelists will override. The Seeded button in the header switches this on and off without reloading.)</span><br /><br />
 
                 <b>Torrent personal status</b><br />
                 <input type="checkbox" id="lfCheckHideGrabbed"${lfHideGrabbedEnabled ? ' checked' : ''} />
@@ -1641,7 +1641,7 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                     <label for="lfCheckSeededButton" class="lfSettingsCheckbox">
                         <span class="lfEmoji">🌱</span> Show the Seeded button in the header
                     </label>
-                    <span class="lfExplanationSpan">(Click to hide torrents with zero seeders, click again to show them. Works on listings and your bookmarks page, independent of your filter lists.)</span><br />
+                    <span class="lfExplanationSpan">(Click to hide torrents with zero seeders, click again to show them. On listings this is the "Hide unseeded uploads" setting applied right away; on your bookmarks page it is a simple view.)</span><br />
 
                     <input type="checkbox" id="lfCheckFreeleechHighlight"${lfFreeleechHighlightEnabled ? ' checked' : ''} />
                     <label for="lfCheckFreeleechHighlight" class="lfSettingsCheckbox">
@@ -2046,20 +2046,6 @@ function lfFilterRow(row, i) {
         }
     }
 
-    if(lfHideUnseededEnabled) {
-        let selector = "td:nth-child(8)";
-
-        if(currentPage == "Collage") {
-            selector = "td:nth-child(7)";
-        }
-
-        let seeders = row.querySelector(selector);
-        if(seeders.classList.contains("r00")) {
-            currentHidden = true;
-            seeders.innerHTML = "(0)";
-        }
-    }
-    
     // Your relationship with the torrent (snatched/seeding/grabbed/leeching); selectors and
     // class names come from the current site's layout profile
     let torrentIconElement = row.querySelector(lfSite.layout.statusIcon);
@@ -2249,6 +2235,15 @@ function lfFilterRow(row, i) {
     } else if(currentForceHide) {
         currentHidden = true;
         currentWhitelisted = false;
+    }
+
+    // Remember what decided this row, so the header's Seeded button can switch "hide unseeded" on and off
+    // live. Unseeded rows (zero seeders, class r00) count as hidden unless something whitelisted them.
+    row.lfUnseeded = lfHasNoSeeders(row);
+    row.lfWhitelisted = currentWhitelisted === true;
+    row.lfOtherHidden = currentHidden === true && currentWhitelisted !== true;
+    if(lfHideUnseededEnabled && row.lfUnseeded && currentWhitelisted !== true) {
+        currentHidden = true;
     }
 
     if(currentWhitelisted === true) {
@@ -2720,8 +2715,36 @@ function lfHasNoSeeders(row) {
     return false;
 }
 
+// Bookmarks has no filtering, so there the button is a plain view; on the other pages it drives the
+// "Hide unseeded uploads" filter (see lfApplyUnseededLive)
 function lfApplySeedViewToRow(row) {
-    row.classList.toggle("lfNoSeedsHidden", lfSeededOnly && lfHasNoSeeders(row));
+    row.classList.toggle("lfNoSeedsHidden", currentPage == "Bookmarks" && lfSeededOnly && lfHasNoSeeders(row));
+}
+
+// Re-apply "hide unseeded" to rows that are already filtered, without reloading
+function lfApplyUnseededLive() {
+    const hide = lfHideUnseededEnabled;
+    let delta = 0;
+
+    for(const row of torrents) {
+        if(row.lfUnseeded === undefined || !row.lfUnseeded) { continue; }       // not filtered, or has seeders
+        if(row.lfWhitelisted || row.lfOtherHidden) { continue; }                // something else decides this row
+
+        const icon = row.querySelector(".lfToggleIcon");                        // an eye-icon decision wins
+        if(icon && (icon.classList.contains("lfIndividuallyWhitelisted") || icon.classList.contains("lfIndividuallyBlacklisted"))) { continue; }
+
+        const isHidden = row.getAttribute("isLFHidden") === "1";
+        if(hide === isHidden) { continue; }
+
+        row.setAttribute("isLFHidden", hide ? "1" : "0");
+        row.classList.toggle("hidden", lfHiddenTorrentsToggled ? !hide : hide);
+        delta += hide ? 1 : -1;
+    }
+
+    if(delta !== 0) {
+        adjustHiddenHeaderCount(delta);
+        if(lfRenumberTorrentsEnabled && currentPage == "Top 10") { renumberTorrents(); }
+    }
 }
 
 function lfRenderFreeleechButton() {
@@ -2757,10 +2780,11 @@ function lfRenderSeededButton() {
     for(const row of document.querySelectorAll("tr.torrent")) { if(lfHasNoSeeders(row)) { noSeeds++; } }
 
     seeded.innerHTML = (lfEmojiEnabled ? '<span class="lfEmoji">🌱</span> ' : "") + "Seeded";
-    seeded.title = lfSeededOnly
+    const on = currentPage == "Bookmarks" ? lfSeededOnly : lfHideUnseededEnabled;
+    seeded.title = on
         ? "Hiding torrents with zero seeders (" + noSeeds + " here). Click to show them."
         : "Showing all torrents. Click to hide torrents with zero seeders (" + noSeeds + " here).";
-    seeded.classList.toggle("lfToggleOn", lfSeededOnly);
+    seeded.classList.toggle("lfToggleOn", on);
 }
 
 for(const row of document.querySelectorAll("tr.torrent")) { lfApplyFreeleechToRow(row); }
@@ -2778,10 +2802,18 @@ if(document.getElementById("lfFreeleechButton")) {
 
 if(document.getElementById("lfSeededButton")) {
     document.getElementById("lfSeededButton").onclick = function() {
-        lfSeededOnly = !lfSeededOnly;
-        GM_setValue(lfSeededViewKey, lfSeededOnly);
-
-        for(const row of document.querySelectorAll("tr.torrent")) { lfApplySeedViewToRow(row); }
+        if(currentPage == "Bookmarks") {
+            lfSeededOnly = !lfSeededOnly;
+            GM_setValue(lfSeededViewKey, lfSeededOnly);
+            for(const row of document.querySelectorAll("tr.torrent")) { lfApplySeedViewToRow(row); }
+        } else {
+            // Same switch as Settings > "Hide unseeded uploads", applied right away
+            lfHideUnseededEnabled = !lfHideUnseededEnabled;
+            GM_setValue("lfHideUnseededEnabled", lfHideUnseededEnabled);
+            const checkbox = document.getElementById("lfCheckHideUnseeded");
+            if(checkbox) { checkbox.checked = lfHideUnseededEnabled; }
+            lfApplyUnseededLive();
+        }
         lfRenderSeededButton();
     };
 }

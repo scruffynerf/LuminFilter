@@ -64,25 +64,55 @@ t = boot({ body: listing(withIcon(row(1, "personal", ["a"], "u"), personal), row
 assert.deepStrictEqual(shown(t), [true, false]);
 console.log("freeleech personal OK");
 
-// Seeded button: hides rows whose seeders cell has class r00, independent of the filter lists
+// Seeded button on a listing: switches "Hide unseeded uploads" live (counted as hidden, whitelists win)
+const noSeed = '<td class="r00">0</td>', seeds = "<td>3</td>";
 const seedRows = () => listing(
-    row(1, "no seeds", ["a"], "u", '<td class="r00">0</td>'),
-    row(2, "seeds", ["a"], "u", "<td>3</td>"));
-const seedShown = t => [...t.doc.querySelectorAll("tr.torrent")].map(r => !r.classList.contains("lfNoSeedsHidden"));
-t = boot({ body: seedRows(), seed: { ...q } });
+    row(1, "no seeds", ["a"], "u", noSeed),
+    row(2, "seeds", ["a"], "u", seeds),
+    row(3, "no seeds, whitelisted uploader", ["a"], "friend", noSeed),
+    row(4, "no seeds, blacklisted tag", ["bad"], "u", noSeed));
+const isHid = t => [...t.doc.querySelectorAll("tr.torrent")].map(r => r.getAttribute("isLFHidden") === "1");
+const hdrText = t => t.doc.getElementById("lfHeaderText").textContent;
+const clk = el => el.dispatchEvent(new t.w.MouseEvent("click", { bubbles: true, cancelable: true }));
+const sbase = { ...q, lfTaglist: "bad", lfWhitelistUploaders: "friend" };
+t = boot({ body: seedRows(), seed: sbase });
 assert.deepStrictEqual(t.errors, []); assert.deepStrictEqual(t.bad, []);
 const sb = () => t.doc.getElementById("lfSeededButton");
 assert.ok(sb() && /Seeded/.test(sb().textContent) && !sb().classList.contains("lfToggleOn"));
-assert.deepStrictEqual(seedShown(t), [true, true]);
-sb().dispatchEvent(new t.w.MouseEvent("click", { bubbles: true, cancelable: true }));
-assert.deepStrictEqual(seedShown(t), [false, true]);
-assert.ok(sb().classList.contains("lfToggleOn"));
-assert.strictEqual(JSON.parse(t.raw.lfSeededOnly), true);
-sb().dispatchEvent(new t.w.MouseEvent("click", { bubbles: true, cancelable: true }));
-assert.deepStrictEqual(seedShown(t), [true, true]);
-// remembered, and can be turned off in settings
-t = boot({ body: seedRows(), seed: { ...q, lfSeededOnly: true } });
-assert.deepStrictEqual(seedShown(t), [false, true]);
+assert.deepStrictEqual(isHid(t), [false, false, false, true]);
+assert.ok(/1 hidden/.test(hdrText(t)));
+clk(sb());
+assert.deepStrictEqual(isHid(t), [true, false, false, true]);          // whitelisted friend stays shown
+assert.ok(sb().classList.contains("lfToggleOn") && /2 hidden/.test(hdrText(t)));
+assert.strictEqual(JSON.parse(t.raw.lfHideUnseededEnabled), true);
+const cls = () => [...t.doc.querySelectorAll("tr.torrent")].map(r => r.classList.contains("hidden"));
+assert.deepStrictEqual(cls(), [true, false, false, true]);
+clk(sb());
+assert.deepStrictEqual(isHid(t), [false, false, false, true]);         // blacklisted-tag row is still hidden for its own reason
+assert.deepStrictEqual(cls(), [false, false, false, true]);
+assert.ok(/1 hidden/.test(hdrText(t)) && !sb().classList.contains("lfToggleOn"));
+// While "show hidden" is on, newly hidden rows follow that view
+clk(t.doc.getElementById("lfHeaderText"));
+clk(sb());
+assert.deepStrictEqual(cls(), [false, true, true, false]);
+// The setting at load time still works, and the checkbox stays in step
+t = boot({ body: seedRows(), seed: { ...sbase, lfHideUnseededEnabled: true } });
+assert.deepStrictEqual(isHid(t), [true, false, false, true]);
+assert.ok(t.doc.getElementById("lfSeededButton").classList.contains("lfToggleOn"));
+clk(t.doc.getElementById("lfSeededButton"));
+assert.strictEqual(t.doc.getElementById("lfCheckHideUnseeded").checked, false);
+assert.deepStrictEqual(isHid(t), [false, false, false, true]);
 t = boot({ body: seedRows(), seed: { ...q, lfSeededButtonEnabled: false } });
 assert.strictEqual(t.doc.getElementById("lfSeededButton"), null);
+
+// Bookmarks has no filtering: the button is a plain remembered view there
+const bm = () => listing(row(1, "no seeds", ["a"], "u", noSeed), row(2, "seeds", ["a"], "u", seeds));
+const bmShown = t => [...t.doc.querySelectorAll("tr.torrent")].map(r => !r.classList.contains("lfNoSeedsHidden"));
+t = boot({ path: "/bookmarks.php", body: bm(), seed: { ...q } });
+assert.deepStrictEqual(bmShown(t), [true, true]);
+clk(t.doc.getElementById("lfSeededButton"));
+assert.deepStrictEqual(bmShown(t), [false, true]);
+assert.strictEqual(JSON.parse(t.raw.lfSeededOnlyBookmarks), true);
+t = boot({ path: "/bookmarks.php", body: bm(), seed: { ...q, lfSeededOnlyBookmarks: true } });
+assert.deepStrictEqual(bmShown(t), [false, true]);
 console.log("freeleech seeded OK");
