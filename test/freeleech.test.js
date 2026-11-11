@@ -63,3 +63,26 @@ assert.strictEqual(t.doc.querySelectorAll(".lfPersonalFL").length, 1);
 t = boot({ body: listing(withIcon(row(1, "personal", ["a"], "u"), personal), row(2, "plain", ["a"], "u")), seed: { ...q, lfFreeleechView: "sitewide" } });
 assert.deepStrictEqual(shown(t), [true, false]);
 console.log("freeleech personal OK");
+
+// Seeded button: hides rows whose seeders cell has class r00, independent of the filter lists
+const seedRows = () => listing(
+    row(1, "no seeds", ["a"], "u", '<td class="r00">0</td>'),
+    row(2, "seeds", ["a"], "u", "<td>3</td>"));
+const seedShown = t => [...t.doc.querySelectorAll("tr.torrent")].map(r => !r.classList.contains("lfNoSeedsHidden"));
+t = boot({ body: seedRows(), seed: { ...q } });
+assert.deepStrictEqual(t.errors, []); assert.deepStrictEqual(t.bad, []);
+const sb = () => t.doc.getElementById("lfSeededButton");
+assert.ok(sb() && /Seeded/.test(sb().textContent) && !sb().classList.contains("lfToggleOn"));
+assert.deepStrictEqual(seedShown(t), [true, true]);
+sb().dispatchEvent(new t.w.MouseEvent("click", { bubbles: true, cancelable: true }));
+assert.deepStrictEqual(seedShown(t), [false, true]);
+assert.ok(sb().classList.contains("lfToggleOn"));
+assert.strictEqual(JSON.parse(t.raw.lfSeededOnly), true);
+sb().dispatchEvent(new t.w.MouseEvent("click", { bubbles: true, cancelable: true }));
+assert.deepStrictEqual(seedShown(t), [true, true]);
+// remembered, and can be turned off in settings
+t = boot({ body: seedRows(), seed: { ...q, lfSeededOnly: true } });
+assert.deepStrictEqual(seedShown(t), [false, true]);
+t = boot({ body: seedRows(), seed: { ...q, lfSeededButtonEnabled: false } });
+assert.strictEqual(t.doc.getElementById("lfSeededButton"), null);
+console.log("freeleech seeded OK");

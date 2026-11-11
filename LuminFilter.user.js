@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.8.1
+// @version      3.9.0
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -743,6 +743,7 @@ lfHighlightBgColor = lfSafeOptionalColor(lfHighlightBgColor);
 
 // Freeleech: header view button and icon highlighting
 let lfFreeleechButtonEnabled = GM_getValue("lfFreeleechButtonEnabled", true);
+let lfSeededButtonEnabled = GM_getValue("lfSeededButtonEnabled", true);
 let lfFreeleechHighlightEnabled = GM_getValue("lfFreeleechHighlightEnabled", true);
 let lfSitewideFLColor = lfSafeColor(GM_getValue("lfSitewideFLColor", "#00c8ff"));
 let lfPersonalFLColor = lfSafeColor(GM_getValue("lfPersonalFLColor", "#d070ff"));
@@ -1020,6 +1021,9 @@ htmlContent.innerHTML = `
         ` : ''}
         ${lfFreeleechButtonEnabled && currentPage !== "Notification filters" && currentPage !== "Torrent details" ? `
             <span class="lfNiceButton" id="lfFreeleechButton"></span>
+        ` : ''}
+        ${lfSeededButtonEnabled && currentPage !== "Notification filters" && currentPage !== "Torrent details" ? `
+            <span class="lfNiceButton" id="lfSeededButton"></span>
         ` : ''}
         ${!lfUnfilteredPages.includes(currentPage) && lfFilterAllButtonEnabled && lfIndividualUploadHidingEnabled ? `
             <span class="lfNiceButton" id="lfFilterAllButton" title="Individually blacklist and hide all unfiltered results">
@@ -1632,6 +1636,12 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                         <span class="lfEmoji">🆓</span> Show the Freeleech button in the header
                     </label>
                     <span class="lfExplanationSpan">(Click to cycle through All, Freeleech (unlimited, sitewide or personal) and Sitewide freeleech only. Also works on your bookmarks page.)</span><br />
+
+                    <input type="checkbox" id="lfCheckSeededButton"${lfSeededButtonEnabled ? ' checked' : ''} />
+                    <label for="lfCheckSeededButton" class="lfSettingsCheckbox">
+                        <span class="lfEmoji">🌱</span> Show the Seeded button in the header
+                    </label>
+                    <span class="lfExplanationSpan">(Click to hide torrents with zero seeders, click again to show them. Works on listings and your bookmarks page, independent of your filter lists.)</span><br />
 
                     <input type="checkbox" id="lfCheckFreeleechHighlight"${lfFreeleechHighlightEnabled ? ' checked' : ''} />
                     <label for="lfCheckFreeleechHighlight" class="lfSettingsCheckbox">
@@ -2696,6 +2706,22 @@ function lfApplyFreeleechToRow(row) {
         || (lfFreeleechView === "any" && info.kind !== null)
         || (lfFreeleechView === "sitewide" && (info.kind === "sitewide" || info.kind === "personal"));
     row.classList.toggle("lfFreeleechHidden", !show);
+    lfApplySeedViewToRow(row);
+}
+
+// Seeded-only view (header button): zero seeders is marked by the site with class r00 on the seeders cell
+const lfSeededViewKey = currentPage == "Bookmarks" ? "lfSeededOnlyBookmarks" : "lfSeededOnly";
+let lfSeededOnly = GM_getValue(lfSeededViewKey, false) === true;
+
+function lfHasNoSeeders(row) {
+    for(const cell of row.children) {
+        if(cell.tagName === "TD" && cell.classList.contains("r00")) { return true; }
+    }
+    return false;
+}
+
+function lfApplySeedViewToRow(row) {
+    row.classList.toggle("lfNoSeedsHidden", lfSeededOnly && lfHasNoSeeders(row));
 }
 
 function lfRenderFreeleechButton() {
@@ -2720,6 +2746,21 @@ function lfRenderFreeleechButton() {
     button.innerHTML = (lfEmojiEnabled ? '<span class="lfEmoji">🆓</span> ' : "Free: ") + labels[lfFreeleechView];
     button.title = tips[lfFreeleechView];
     button.classList.toggle("lfToggleOn", lfFreeleechView !== "all");
+    lfRenderSeededButton();
+}
+
+function lfRenderSeededButton() {
+    const seeded = document.getElementById("lfSeededButton");
+    if(!seeded) { return; }
+
+    let noSeeds = 0;
+    for(const row of document.querySelectorAll("tr.torrent")) { if(lfHasNoSeeders(row)) { noSeeds++; } }
+
+    seeded.innerHTML = (lfEmojiEnabled ? '<span class="lfEmoji">🌱</span> ' : "") + "Seeded";
+    seeded.title = lfSeededOnly
+        ? "Hiding torrents with zero seeders (" + noSeeds + " here). Click to show them."
+        : "Showing all torrents. Click to hide torrents with zero seeders (" + noSeeds + " here).";
+    seeded.classList.toggle("lfToggleOn", lfSeededOnly);
 }
 
 for(const row of document.querySelectorAll("tr.torrent")) { lfApplyFreeleechToRow(row); }
@@ -2732,6 +2773,16 @@ if(document.getElementById("lfFreeleechButton")) {
 
         for(const row of document.querySelectorAll("tr.torrent")) { lfApplyFreeleechToRow(row); }
         lfRenderFreeleechButton();
+    };
+}
+
+if(document.getElementById("lfSeededButton")) {
+    document.getElementById("lfSeededButton").onclick = function() {
+        lfSeededOnly = !lfSeededOnly;
+        GM_setValue(lfSeededViewKey, lfSeededOnly);
+
+        for(const row of document.querySelectorAll("tr.torrent")) { lfApplySeedViewToRow(row); }
+        lfRenderSeededButton();
     };
 }
 
@@ -4056,6 +4107,7 @@ function saveData() {
         lfHideBookmarkedEnabled: "lfCheckHideBookmarked",
         lfSpotlightRowGlow: "lfCheckSpotlightRowGlow",
         lfFreeleechButtonEnabled: "lfCheckFreeleechButton",
+        lfSeededButtonEnabled: "lfCheckSeededButton",
         lfFreeleechHighlightEnabled: "lfCheckFreeleechHighlight",
         lfBypassWhitelistsEnabled: "lfCheckBypassWhitelists",
         lfIndividualUploadHidingEnabled: "lfCheckIndividualHide",
@@ -4442,7 +4494,7 @@ a.lfLink, a.lfLink:visited {
 }
 
 /* Freeleech view (header button) and icon marks */
-tr.lfFreeleechHidden {
+tr.lfFreeleechHidden, tr.lfNoSeedsHidden {
     display: none !important;
 }
 

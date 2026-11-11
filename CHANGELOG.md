@@ -1,4 +1,7 @@
 # Latest changes
+## v3.9.0
+- New Seeded button in the header: click to hide torrents with zero seeders, click again to show them. It works on listings and your bookmarks page (with its own remembered setting), independent of your filter lists. The "Hide unseeded uploads" filter setting is unchanged
+
 ## v3.8.1
 - Personal freeleech is now included in the "Sitewide" view of the Freeleech button (it is a time limited offer too)
 
