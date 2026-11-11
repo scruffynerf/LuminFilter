@@ -115,4 +115,18 @@ assert.deepStrictEqual(bmShown(t), [false, true]);
 assert.strictEqual(JSON.parse(t.raw.lfSeededOnlyBookmarks), true);
 t = boot({ path: "/bookmarks.php", body: bm(), seed: { ...q, lfSeededOnlyBookmarks: true } });
 assert.deepStrictEqual(bmShown(t), [false, true]);
+
+// Whitelist override can be turned off for unseeded rows only (eye-icon choices still win)
+const ov = { ...sbase, lfHideUnseededEnabled: true, lfUnseededWhitelistOverride: false };
+t = boot({ body: seedRows(), seed: ov });
+assert.deepStrictEqual(isHid(t), [true, false, true, true]);            // whitelisted friend with no seeds is now hidden
+assert.ok(t.doc.getElementById("lfCheckUnseededWhitelistOverride") && !t.doc.getElementById("lfCheckUnseededWhitelistOverride").checked);
+clk(t.doc.getElementById("lfSeededButton"));                             // button off: friend comes back, setting unchanged
+assert.deepStrictEqual(isHid(t), [false, false, false, true]);
+assert.ok(!t.doc.getElementById("lfCheckUnseededWhitelistOverride").checked);
+clk(t.doc.getElementById("lfSeededButton"));
+assert.deepStrictEqual(isHid(t), [true, false, true, true]);
+// With unseeded hiding off, the override setting changes nothing
+t = boot({ body: seedRows(), seed: { ...sbase, lfUnseededWhitelistOverride: false } });
+assert.deepStrictEqual(isHid(t), [false, false, false, true]);          // unseeded hiding off: nothing changes
 console.log("freeleech seeded OK");

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LuminFilter
 // @namespace    https://github.com/scruffynerf/LuminFilter
-// @version      3.9.1
+// @version      3.9.2
 // @license      GPLv3
 // @description  Fully featured torrent filtering solution for Luminance-based sites (fork of NoShitEmpornium)
 // @updateURL    https://github.com/scruffynerf/LuminFilter/raw/master/LuminFilter.meta.js
@@ -637,6 +637,7 @@ let lfHideAnonUploadsEnabled = GM_getValue("lfHideAnonUploadsEnabled", false);
 let lfHideReportedEnabled = GM_getValue("lfHideReportedEnabled", false);
 let lfHideWarnedEnabled = GM_getValue("lfHideWarnedEnabled", false);
 let lfHideUnseededEnabled = GM_getValue("lfHideUnseededEnabled", false);
+let lfUnseededWhitelistOverride = GM_getValue("lfUnseededWhitelistOverride", true);
 
 //   Torrent personal status
 let lfHideGrabbedEnabled = GM_getValue("lfHideGrabbedEnabled", false);
@@ -1463,7 +1464,13 @@ SHOW: $SI{happyfappy} AND $UP{someuser}</pre>
                 <label for="lfCheckHideUnseeded" class="lfSettingsCheckbox">
                     <span class="lfEmoji">🏜️</span> Hide unseeded uploads
                 </label>
-                <span class="lfExplanationSpan">(Hide torrents with zero seeders, whitelists will override. The Seeded button in the header switches this on and off without reloading.)</span><br /><br />
+                <span class="lfExplanationSpan">(Hide torrents with zero seeders. The Seeded button in the header switches this on and off without reloading.)</span><br />
+
+                <input type="checkbox" id="lfCheckUnseededWhitelistOverride"${lfUnseededWhitelistOverride ? ' checked' : ''} />
+                <label for="lfCheckUnseededWhitelistOverride" class="lfSettingsCheckbox">
+                    <span class="lfEmoji">✅</span> Whitelists override hiding unseeded uploads
+                </label>
+                <span class="lfExplanationSpan">(When off, torrents with zero seeders are hidden even if a whitelist matches them. Torrents you chose with the eye icon always stay as you set them.)</span><br /><br />
 
                 <b>Torrent personal status</b><br />
                 <input type="checkbox" id="lfCheckHideGrabbed"${lfHideGrabbedEnabled ? ' checked' : ''} />
@@ -2240,10 +2247,15 @@ function lfFilterRow(row, i) {
     // Remember what decided this row, so the header's Seeded button can switch "hide unseeded" on and off
     // live. Unseeded rows (zero seeders, class r00) count as hidden unless something whitelisted them.
     row.lfUnseeded = lfHasNoSeeders(row);
-    row.lfWhitelisted = currentWhitelisted === true;
+    row.lfWhitelisted = currentWhitelisted === true && currentForceShow !== true;
     row.lfOtherHidden = currentHidden === true && currentWhitelisted !== true;
-    if(lfHideUnseededEnabled && row.lfUnseeded && currentWhitelisted !== true) {
-        currentHidden = true;
+    if(lfHideUnseededEnabled && row.lfUnseeded && currentForceShow !== true && currentForceHide !== true) {
+        if(currentWhitelisted !== true) {
+            currentHidden = true;
+        } else if(!lfUnseededWhitelistOverride) {
+            currentHidden = true;
+            currentWhitelisted = false;
+        }
     }
 
     if(currentWhitelisted === true) {
@@ -2728,7 +2740,8 @@ function lfApplyUnseededLive() {
 
     for(const row of torrents) {
         if(row.lfUnseeded === undefined || !row.lfUnseeded) { continue; }       // not filtered, or has seeders
-        if(row.lfWhitelisted || row.lfOtherHidden) { continue; }                // something else decides this row
+        if(row.lfWhitelisted && lfUnseededWhitelistOverride) { continue; }      // a whitelist decides this row
+        if(row.lfOtherHidden) { continue; }                                     // hidden for another reason anyway
 
         const icon = row.querySelector(".lfToggleIcon");                        // an eye-icon decision wins
         if(icon && (icon.classList.contains("lfIndividuallyWhitelisted") || icon.classList.contains("lfIndividuallyBlacklisted"))) { continue; }
@@ -4154,6 +4167,7 @@ function saveData() {
         lfRemoveHardPassResults: "lfCheckRemoveHardPassResults",
         lfConditionalEnabled: "lfCheckConditionalEnabled",
         lfHideUnseededEnabled: "lfCheckHideUnseeded",
+        lfUnseededWhitelistOverride: "lfCheckUnseededWhitelistOverride",
         lfRenumberTorrentsEnabled: "lfCheckRenumberTorrents",
         lfHideCategoryIconsEnabled: "lfCheckHideCategoryIcons",
         lfArrowNavigationEnabled: "lfCheckArrowNavigation",
